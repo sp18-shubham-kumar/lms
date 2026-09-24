@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skills LMS — phased delivery plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1B2027; --slate:#5B6478; --faint:#8A929D;
+  --line:#DBDFE5; --paper:#FFFFFF; --panel:#F4F5F8;
+  --navy:#24304F; --navy-t:#E6EAF3;
+  --brass:#8E6812; --brass-t:#F7EFDA;
+  --teal:#14705A; --teal-t:#E1F0EB;
+  --warn:#A03B26; --warn-t:#F9E9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Archivo",system-ui,sans-serif; font-size:16px; line-height:1.65; -webkit-font-smoothing:antialiased}
+.wrap{display:grid; grid-template-columns:236px minmax(0,1fr); gap:56px; max-width:1180px; margin:0 auto; padding:0 32px}
+nav{position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto; padding:48px 0; border-right:1px solid var(--line)}
+nav h2{font-size:12px; font-weight:500; color:var(--faint); margin:0 0 14px}
+nav ol{list-style:none; margin:0 0 26px; padding:0}
+nav a{display:flex; gap:10px; text-decoration:none; color:var(--slate); font-size:13.5px; line-height:1.4; padding:4px 10px 4px 0}
+nav a:hover{color:var(--ink)}
+nav a:focus-visible{outline:2px solid var(--navy); outline-offset:2px}
+nav a .id{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--brass); min-width:24px; padding-top:2px}
+main{padding:48px 0 120px; max-width:780px}
+.hero{border-bottom:1px solid var(--line); padding-bottom:40px; margin-bottom:20px}
+.hero .kick{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--brass); margin:0 0 20px}
+.hero h1{font-size:37px; line-height:1.16; font-weight:600; letter-spacing:-.018em; margin:0 0 18px; max-width:20ch}
+.hero p{font-size:18px; line-height:1.55; color:var(--slate); margin:0; max-width:60ch}
+h2{font-size:23px; font-weight:600; letter-spacing:-.012em; margin:0 0 6px}
+h3{font-size:16.5px; font-weight:600; margin:30px 0 8px}
+h4{font-size:13.5px; font-weight:600; margin:20px 0 6px; color:var(--navy)}
+p{margin:0 0 14px; max-width:72ch}
+ul,ol.t{margin:0 0 16px; padding-left:20px; max-width:72ch}
+li{margin:0 0 6px}
+section{padding-top:52px}
+.shead{display:flex; align-items:baseline; gap:14px; border-top:1px solid var(--ink); padding-top:14px; margin-bottom:6px}
+.shead .id{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--brass); padding-top:5px}
+.meta{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint); margin:0 0 16px}
+.lede{color:var(--slate); font-size:16.5px; max-width:66ch}
+code{font-family:"JetBrains Mono",monospace; font-size:.86em; background:var(--panel); padding:1px 5px; border-radius:3px}
+figure{margin:22px 0 24px; background:var(--panel); padding:18px 20px 12px; border-radius:4px}
+figure svg{display:block; width:100%; height:auto}
+figcaption{font-size:12.5px; color:var(--slate); margin-top:8px; line-height:1.5}
+table{border-collapse:collapse; width:100%; font-size:14px; margin:0 0 20px}
+th,td{text-align:left; vertical-align:top; padding:9px 12px 9px 0; border-bottom:1px solid var(--line)}
+th{font-weight:600; font-size:12.5px; color:var(--navy); border-bottom:1px solid var(--ink)}
+td.y{color:var(--teal); font-weight:600}
+.split{display:grid; grid-template-columns:1fr 1fr; gap:0 34px}
+.tasks{list-style:none; padding:0; margin:0 0 14px; max-width:72ch}
+.tasks li{position:relative; padding-left:24px; margin:0 0 7px; font-size:14.5px; line-height:1.55}
+.tasks li::before{content:""; position:absolute; left:0; top:6px; width:11px; height:11px; border:1px solid var(--slate); border-radius:2px}
+.ship{border-left:2px solid var(--teal); background:var(--teal-t); padding:14px 18px; margin:20px 0; border-radius:0 3px 3px 0}
+.ship h4{margin:0 0 6px; color:var(--teal)}
+.ship p{margin:0; font-size:14.5px}
+.gap{border-left:2px solid var(--brass); padding:2px 0 2px 16px; margin:18px 0; color:var(--slate); font-size:14.5px; max-width:68ch}
+.dt{font:500 13px "Archivo",sans-serif; fill:var(--ink)}
+.ds{font:400 11.5px "Archivo",sans-serif; fill:var(--slate)}
+.dl{font:500 11px "JetBrains Mono",monospace; fill:var(--brass)}
+.dm{font:400 11.5px "JetBrains Mono",monospace; fill:var(--slate)}
+.b{fill:var(--paper); stroke:var(--line); stroke-width:1}
+.bn{fill:var(--navy-t); stroke:#B9C3DA; stroke-width:1}
+.bb{fill:var(--brass-t); stroke:#DCC48C; stroke-width:1}
+.bt{fill:var(--teal-t); stroke:#A6CFC2; stroke-width:1}
+.ar{stroke:var(--slate); stroke-width:1; fill:none}
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr; gap:0}
+  nav{position:static; height:auto; border-right:0; border-bottom:1px solid var(--line); padding:28px 0}
+  nav ol{columns:2}
+  .hero h1{font-size:29px}
+  .split{grid-template-columns:1fr}
+}
+@media print{nav{display:none} .wrap{grid-template-columns:1fr} section{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+</marker></defs></svg>
+
+<div class="wrap">
+<nav aria-label="Contents">
+  <h2>Phases</h2>
+  <ol>
+    <li><a href="#rules"><span class="id">00</span><span>Ground rules</span></a></li>
+    <li><a href="#p1"><span class="id">P1</span><span>Foundation</span></a></li>
+    <li><a href="#p2"><span class="id">P2</span><span>Skill framework</span></a></li>
+    <li><a href="#p3"><span class="id">P3</span><span>Resources and roadmaps</span></a></li>
+    <li><a href="#p4"><span class="id">P4</span><span>Verification loop</span></a></li>
+    <li><a href="#p5"><span class="id">P5</span><span>Certificates</span></a></li>
+    <li><a href="#p6"><span class="id">P6</span><span>Assessment engine</span></a></li>
+    <li><a href="#p7"><span class="id">P7</span><span>Rewards</span></a></li>
+    <li><a href="#p8"><span class="id">P8</span><span>Automation and analytics</span></a></li>
+  </ol>
+  <h2>Reference</h2>
+  <ol>
+    <li><a href="#matrix"><span class="id">M</span><span>Feature accretion</span></a></li>
+    <li><a href="#cut"><span class="id">C</span><span>What to cut first</span></a></li>
+    <li><a href="#dod"><span class="id">D</span><span>Definition of done</span></a></li>
+  </ol>
+</nav>
+
+<main>
+<div class="hero">
+  <p class="kick">Delivery plan / eight phases</p>
+  <h1>Every phase ends with something an organisation would actually use</h1>
+  <p>No phase delivers a layer. Each one adds a capability that completes a loop, so the product is demoable, pilotable and cancellable at eight different points.</p>
+</div>
+
+<section id="rules" style="padding-top:34px">
+<div class="shead"><span class="id">00</span><h2>Ground rules</h2></div>
+<ul>
+<li><strong>Vertical slices, not horizontal layers.</strong> A phase always includes schema, API and screens for the thing it adds. "Backend for everything, then frontend for everything" produces nine months with nothing to show.</li>
+<li><strong>Each phase has a demo script.</strong> If you cannot walk a stranger through it in five minutes, the phase is not defined yet.</li>
+<li><strong>Multi-tenancy is in phase one and never revisited.</strong> Retrofitting tenant isolation is the most expensive mistake available on this project.</li>
+<li><strong>Conscious gaps are written down.</strong> Every phase lists what is missing and the manual workaround, so a pilot customer hears it from you before they find it.</li>
+<li><strong>Durations assume a small team:</strong> two backend, one frontend, one shared full-stack, design part-time. Adjust proportionally, but phase four does not compress much regardless of headcount.</li>
+</ul>
+
+<h3>The arc</h3>
+<figure>
+<svg viewBox="0 0 700 218" role="img" aria-label="Eight phases in two rows, each building on the last">
+<g><rect class="bn" x="6" y="20" width="160" height="64" rx="6"/><text class="dl" x="20" y="40">P1</text><text class="dt" x="20" y="58">Foundation</text><text class="ds" x="20" y="74">orgs, people, skills</text></g>
+<line class="ar" x1="166" y1="52" x2="178" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bn" x="182" y="20" width="160" height="64" rx="6"/><text class="dl" x="196" y="40">P2</text><text class="dt" x="196" y="58">Skill framework</text><text class="ds" x="196" y="74">levels and grades</text></g>
+<line class="ar" x1="342" y1="52" x2="354" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bn" x="358" y="20" width="160" height="64" rx="6"/><text class="dl" x="372" y="40">P3</text><text class="dt" x="372" y="58">Roadmaps</text><text class="ds" x="372" y="74">the path to close a gap</text></g>
+<line class="ar" x1="518" y1="52" x2="530" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bb" x="534" y="20" width="160" height="64" rx="6"/><text class="dl" x="548" y="40">P4</text><text class="dt" x="548" y="58">Verification</text><text class="ds" x="548" y="74">the human signature</text></g>
+<path class="ar" d="M614 84 L614 100 L86 100 L86 120" marker-end="url(#arw)"/>
+<g><rect class="bt" x="6" y="120" width="160" height="64" rx="6"/><text class="dl" x="20" y="140">P5</text><text class="dt" x="20" y="158">Certificates</text><text class="ds" x="20" y="174">provable outside</text></g>
+<line class="ar" x1="166" y1="152" x2="178" y2="152" marker-end="url(#arw)"/>
+<g><rect class="bt" x="182" y="120" width="160" height="64" rx="6"/><text class="dl" x="196" y="140">P6</text><text class="dt" x="196" y="158">Assessment</text><text class="ds" x="196" y="174">cuts verifier load</text></g>
+<line class="ar" x1="342" y1="152" x2="354" y2="152" marker-end="url(#arw)"/>
+<g><rect class="bt" x="358" y="120" width="160" height="64" rx="6"/><text class="dl" x="372" y="140">P7</text><text class="dt" x="372" y="158">Rewards</text><text class="ds" x="372" y="174">XP and coin ledger</text></g>
+<line class="ar" x1="518" y1="152" x2="530" y2="152" marker-end="url(#arw)"/>
+<g><rect class="b" x="534" y="120" width="160" height="64" rx="6"/><text class="dl" x="548" y="140">P8</text><text class="dt" x="548" y="158">Automation</text><text class="ds" x="548" y="174">runs without admins</text></g>
+<text class="dm" x="6" y="208">phase 4 is the product — everything before it is setup, everything after it is leverage</text>
+</svg>
+<figcaption>Roughly seven to eight months end to end. Phases one to four are the part you cannot reorder.</figcaption>
+</figure>
+</section>
+
+<section id="p1">
+<div class="shead"><span class="id">P1</span><h2>Foundation</h2></div>
+<p class="meta">4–6 weeks · blocks everything · no dependencies</p>
+<p class="lede">A multi-tenant application organisations can log into, populate with their people, and use to see who knows what.</p>
+<figure>
+<svg viewBox="0 0 700 108" role="img" aria-label="Phase one user journey: create org, invite people, sign in, declare skills, browse directory">
+<g><rect class="bn" x="2" y="26" width="128" height="52" rx="6"/><text class="dt" x="66" y="47" text-anchor="middle">Create org</text><text class="ds" x="66" y="64" text-anchor="middle">admin signs up</text></g>
+<line class="ar" x1="130" y1="52" x2="142" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="144" y="26" width="128" height="52" rx="6"/><text class="dt" x="208" y="47" text-anchor="middle">Import people</text><text class="ds" x="208" y="64" text-anchor="middle">CSV, org units</text></g>
+<line class="ar" x1="272" y1="52" x2="284" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="286" y="26" width="128" height="52" rx="6"/><text class="dt" x="350" y="47" text-anchor="middle">Sign in</text><text class="ds" x="350" y="64" text-anchor="middle">email or SSO</text></g>
+<line class="ar" x1="414" y1="52" x2="426" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="428" y="26" width="128" height="52" rx="6"/><text class="dt" x="492" y="47" text-anchor="middle">Declare skills</text><text class="ds" x="492" y="64" text-anchor="middle">self-reported</text></g>
+<line class="ar" x1="556" y1="52" x2="568" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bt" x="570" y="26" width="128" height="52" rx="6"/><text class="dt" x="634" y="47" text-anchor="middle">Find expertise</text><text class="ds" x="634" y="64" text-anchor="middle">search people</text></g>
+</svg>
+<figcaption>Useful on its own as an internal skills directory, which is how you get a pilot organisation to load real data early.</figcaption>
+</figure>
+<div class="split">
+<div>
+<h4>Data and platform</h4>
+<ul class="tasks">
+<li>Schema: <code>tenant</code>, <code>person</code>, <code>membership</code>, <code>org_unit</code> with LTREE path, <code>identity_provider</code></li>
+<li>Schema: <code>capability</code>, <code>role</code>, <code>role_capability</code>, <code>role_grant</code></li>
+<li>Schema: flat <code>skill</code> table plus <code>self_declared_skill</code></li>
+<li>Append-only <code>audit_log</code> with no update or delete grants</li>
+<li>RLS enabled and forced on every tenant-scoped table</li>
+<li>Connection pool wrapper that sets <code>app.tenant_id</code> before any statement and fails if unset</li>
+<li>Migration tooling, seed script, two demo tenants</li>
+<li>CI, staging environment, error tracking, backup and restore drill</li>
+</ul>
+<h4>Backend</h4>
+<ul class="tasks">
+<li>Tenant provisioning as a single transaction</li>
+<li>Email plus magic-link auth; OIDC per tenant behind a flag</li>
+<li>Session resolving person to memberships, tenant picker when multiple</li>
+<li><code>can(actor, capability, resource)</code> v1 with Redis-cached capability sets</li>
+<li>Member invite, deactivate, bulk CSV import with dry-run diff</li>
+<li>Org unit CRUD with subtree move and path rewrite</li>
+<li>Skill CRUD and self-declaration endpoints</li>
+<li>People search filtered by declared skill and org unit</li>
+<li>Audit middleware capturing actor, before and after, request id</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul class="tasks">
+<li>App shell: tenant theme from session, top bar showing tenant name, capability-gated navigation</li>
+<li>Sign in, magic link, tenant picker</li>
+<li>Member directory with search and filters</li>
+<li>Org unit tree editor with drag to reparent</li>
+<li>My profile: declared skills, org unit, manager</li>
+<li>Admin: roles and grants, member import wizard with diff preview</li>
+<li>Empty states carrying the next action on every screen</li>
+<li>Accessibility floor: focus states, keyboard nav, no colour-only status</li>
+</ul>
+<h4>QA</h4>
+<ul class="tasks">
+<li>Isolation suite: seed two tenants, run every list endpoint as A, assert zero rows from B</li>
+<li>Permission matrix tests per role against every endpoint</li>
+<li>Load a 5,000-member tenant and check directory and tree performance</li>
+</ul>
+</div>
+</div>
+<div class="ship"><h4>Shippable as</h4><p>An internal skills directory. An organisation imports its people, everyone tags what they know, and anyone can find who has done Kubernetes before. That alone gets used.</p></div>
+<div class="gap"><strong>Conscious gaps.</strong> Skills have no levels and nothing is verified, so declared skills are self-reported only and the interface must say so plainly. Workaround: none needed, since a directory is honest about being self-reported.</div>
+</section>
+
+<section id="p2">
+<div class="shead"><span class="id">P2</span><h2>Skill framework and grades</h2></div>
+<p class="meta">4–5 weeks · depends on P1</p>
+<p class="lede">Each organisation defines its own skill levels and career ladder, and every person can see the distance to their next grade.</p>
+<figure>
+<svg viewBox="0 0 700 108" role="img" aria-label="Phase two journey: define levels, build ladder, assign profiles, view gap">
+<g><rect class="bn" x="2" y="26" width="128" height="52" rx="6"/><text class="dt" x="66" y="47" text-anchor="middle">Define levels</text><text class="ds" x="66" y="64" text-anchor="middle">rubric per level</text></g>
+<line class="ar" x1="130" y1="52" x2="142" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="144" y="26" width="128" height="52" rx="6"/><text class="dt" x="208" y="47" text-anchor="middle">Build ladder</text><text class="ds" x="208" y="64" text-anchor="middle">tracks and grades</text></g>
+<line class="ar" x1="272" y1="52" x2="284" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="286" y="26" width="128" height="52" rx="6"/><text class="dt" x="350" y="47" text-anchor="middle">Assign profiles</text><text class="ds" x="350" y="64" text-anchor="middle">people to grades</text></g>
+<line class="ar" x1="414" y1="52" x2="426" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bt" x="428" y="26" width="128" height="52" rx="6"/><text class="dt" x="492" y="47" text-anchor="middle">See the gap</text><text class="ds" x="492" y="64" text-anchor="middle">what is missing</text></g>
+<line class="ar" x1="556" y1="52" x2="568" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bt" x="570" y="26" width="128" height="52" rx="6"/><text class="dt" x="634" y="47" text-anchor="middle">Team heatmap</text><text class="ds" x="634" y="64" text-anchor="middle">manager view</text></g>
+</svg>
+<figcaption>The first phase where a manager gets something they cannot already produce in a spreadsheet.</figcaption>
+</figure>
+<div class="split">
+<div>
+<h4>Data and backend</h4>
+<ul class="tasks">
+<li>Schema: <code>skill_domain</code>, <code>skill_level</code> with indicators and evidence kinds, <code>skill_edge</code> for prerequisites</li>
+<li>Schema: <code>tenant_skill_override</code> for copy-on-write on a global library</li>
+<li>Schema: <code>track</code>, <code>job_profile</code>, <code>profile_requirement</code>, <code>readiness_snapshot</code></li>
+<li>Skill versioning: publish creates a new version, never mutates</li>
+<li>Cycle rejection on prerequisite insert</li>
+<li>Readiness computation, triggered on change and nightly as a backstop</li>
+<li>Team rollup queries scoped by org subtree through <code>can()</code></li>
+<li>Two or three seeded starter frameworks by industry</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul class="tasks">
+<li>Taxonomy editor as a grid with inline edit, bulk paste, diff and publish</li>
+<li>Skill page with the five level rubrics as its main content</li>
+<li>Prerequisite picker showing the upstream graph for that skill only</li>
+<li>Job profile editor: pick skills, set minimum level and criticality</li>
+<li>Grade ladder view showing the diff between adjacent grades</li>
+<li>Learner home rebuilt around the gap to the next grade</li>
+<li>Manager heatmap: members against core requirements, with a "one gap from promotion" filter</li>
+</ul>
+</div>
+</div>
+<div class="ship"><h4>Shippable as</h4><p>A competency framework tool. An L&amp;D lead builds a forty-skill framework and a four-grade ladder in an afternoon, and every manager sees their team mapped against it.</p></div>
+<div class="gap"><strong>Conscious gaps.</strong> Readiness is computed from self-declared levels, so it is indicative only. Label it "self-reported" everywhere in the interface and resist the urge to put it in a report that leaves the team.</div>
+</section>
+
+<section id="p3">
+<div class="shead"><span class="id">P3</span><h2>Resources and roadmaps</h2></div>
+<p class="meta">3–4 weeks · depends on P2</p>
+<p class="lede">Every gap becomes an ordered plan, with suggested learning from anywhere on the internet.</p>
+<figure>
+<svg viewBox="0 0 700 108" role="img" aria-label="Phase three journey: pick target, generate roadmap, follow milestones, rate resources">
+<g><rect class="bn" x="2" y="26" width="128" height="52" rx="6"/><text class="dt" x="66" y="47" text-anchor="middle">Pick a target</text><text class="ds" x="66" y="64" text-anchor="middle">next grade</text></g>
+<line class="ar" x1="130" y1="52" x2="142" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="144" y="26" width="128" height="52" rx="6"/><text class="dt" x="208" y="47" text-anchor="middle">Generate plan</text><text class="ds" x="208" y="64" text-anchor="middle">prereqs first</text></g>
+<line class="ar" x1="272" y1="52" x2="284" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="286" y="26" width="128" height="52" rx="6"/><text class="dt" x="350" y="47" text-anchor="middle">Learn anywhere</text><text class="ds" x="350" y="64" text-anchor="middle">links, books, people</text></g>
+<line class="ar" x1="414" y1="52" x2="426" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="428" y="26" width="128" height="52" rx="6"/><text class="dt" x="492" y="47" text-anchor="middle">Mark done</text><text class="ds" x="492" y="64" text-anchor="middle">self-reported</text></g>
+<line class="ar" x1="556" y1="52" x2="568" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bt" x="570" y="26" width="128" height="52" rx="6"/><text class="dt" x="634" y="47" text-anchor="middle">Rate it</text><text class="ds" x="634" y="64" text-anchor="middle">helped or not</text></g>
+</svg>
+<figcaption>Milestones are skill levels, never courses. A resource is a suggestion attached to a milestone, and always skippable.</figcaption>
+</figure>
+<div class="split">
+<div>
+<h4>Data and backend</h4>
+<ul class="tasks">
+<li>Schema: <code>resource</code>, <code>resource_skill</code>, <code>resource_rating</code>, <code>resource_progress</code></li>
+<li>Schema: <code>roadmap</code>, <code>milestone</code>, <code>roadmap_template</code></li>
+<li>URL normalisation and dedupe so one link is one record</li>
+<li>Open Graph metadata fetch for title, duration and provider</li>
+<li>Generation algorithm: diff, expand intermediate levels, close prerequisites transitively, topological sort, tie-break on effort</li>
+<li>Milestone locking until prerequisites are satisfied</li>
+<li>Additive regeneration that never drops a milestone with evidence attached</li>
+<li>Resource ranking: helpful ratio weighted by raters who later reached the level, then recency, then cost ascending</li>
+<li>Moderation queue for submitted resources</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul class="tasks">
+<li>Roadmap as a vertical stepper, current milestone expanded, the rest one line each</li>
+<li>Locked milestones stating why and linking to the blocker</li>
+<li>Milestone detail: level rubric, accepted evidence, suggested resources</li>
+<li>Resource list always inside a skill-level context, never a standalone catalog</li>
+<li>Submit a resource, with duplicate detection before save</li>
+<li>Explicit "I learned this elsewhere" path that skips the catalog entirely</li>
+<li>Two-tap rating prompt shown after a level is reached</li>
+<li>Progress shown as milestones done out of total, never a percentage</li>
+</ul>
+</div>
+</div>
+<div class="ship"><h4>Shippable as</h4><p>A guided development planner. A person picks their next grade and gets an ordered path with real links, and a manager can see who is actively working toward what.</p></div>
+<div class="gap"><strong>Conscious gaps.</strong> Completing a milestone is still self-reported, so nothing in the system is yet trustworthy enough for a promotion decision. Say this out loud in pilot conversations; it sets up phase four as the answer.</div>
+</section>
+<section id="p4">
+<div class="shead"><span class="id">P4</span><h2>Verification loop</h2></div>
+<p class="meta">6–8 weeks · depends on P2 · the phase that cannot be cut</p>
+<p class="lede">An organisation nominates who may confirm which skills, and confirmed levels become a separate, trustworthy tier of data.</p>
+<figure>
+<svg viewBox="0 0 700 108" role="img" aria-label="Phase four journey: submit claim with evidence, route to authorised verifier, review against rubric, sign off, verified profile">
+<g><rect class="bn" x="2" y="26" width="128" height="52" rx="6"/><text class="dt" x="66" y="47" text-anchor="middle">Claim a level</text><text class="ds" x="66" y="64" text-anchor="middle">attach evidence</text></g>
+<line class="ar" x1="130" y1="52" x2="142" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="144" y="26" width="128" height="52" rx="6"/><text class="dt" x="208" y="47" text-anchor="middle">Route</text><text class="ds" x="208" y="64" text-anchor="middle">authority lookup</text></g>
+<line class="ar" x1="272" y1="52" x2="284" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bb" x="286" y="26" width="128" height="52" rx="6"/><text class="dt" x="350" y="47" text-anchor="middle">Review</text><text class="ds" x="350" y="64" text-anchor="middle">rubric per indicator</text></g>
+<line class="ar" x1="414" y1="52" x2="426" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bb" x="428" y="26" width="128" height="52" rx="6"/><text class="dt" x="492" y="47" text-anchor="middle">Sign off</text><text class="ds" x="492" y="64" text-anchor="middle">tech lead decides</text></g>
+<line class="ar" x1="556" y1="52" x2="568" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bt" x="570" y="26" width="128" height="52" rx="6"/><text class="dt" x="634" y="47" text-anchor="middle">Verified</text><text class="ds" x="634" y="64" text-anchor="middle">dated, expiring</text></g>
+</svg>
+<figcaption>From here on, readiness, reports and rewards read only the verified tier. Self-declared data stays visible but stops counting.</figcaption>
+</figure>
+<div class="split">
+<div>
+<h4>Permission model</h4>
+<ul class="tasks">
+<li>Schema: <code>verifier_authority</code> with skill or skill group, max level, org scope, quorum flag, validity window</li>
+<li>Authority resolution query, indexed for the routing path</li>
+<li>Conflict rules: not self, no reciprocal pair inside 90 days, optional manager exclusion above a threshold level</li>
+<li>Separate <code>verifier.grant</code> capability, held only by org admin, with its own audit stream</li>
+<li>Delegation with a hard expiry</li>
+</ul>
+<h4>Workflow backend</h4>
+<ul class="tasks">
+<li>Schema: <code>skill_claim</code>, <code>evidence</code>, <code>verification</code>, <code>skill_assertion</code></li>
+<li>State machine: draft, submitted, in review, verified, returned, rejected, expired, revoked</li>
+<li>Routing on submit, with fan-out to every eligible verifier and claim on open</li>
+<li>Quorum support: n independent approvals before an assertion is written</li>
+<li>SLA timers per level, escalation up the authority chain, admin alert on second breach</li>
+<li>Assertion write as one transaction: compute <code>valid_until</code>, recompute readiness, emit events</li>
+<li>Revocation path with reason, never a delete</li>
+<li>Every decision stores the authority row and policy version used</li>
+<li>Evidence upload to object storage: per-tenant prefix, signed URLs, virus scan, size and type limits</li>
+<li>Readiness and all reports switched to read verified assertions only</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul class="tasks">
+<li>Claim submission per milestone, showing accepted evidence kinds and what is still missing before submit enables</li>
+<li>Verifier queue sorted by SLA risk, filterable by skill and team</li>
+<li>Evidence detail on one page: rubric, all attachments, learner rationale, decision actions</li>
+<li>Approval requires a score per rubric indicator plus a comment</li>
+<li>Return path with a specific request for what is missing</li>
+<li>Authority grant matrix: principals down, skill groups across, max level in the cell</li>
+<li>Verifier's own mandate visible on their profile</li>
+<li>Verifier workload panel: pending, median turnaround, signed this quarter</li>
+<li>Mobile review flow, since leads approve between meetings</li>
+<li>Verified badge treatment distinct from self-declared everywhere, by shape and text not colour alone</li>
+</ul>
+<h4>QA and ops</h4>
+<ul class="tasks">
+<li>Tests proving no path to self-approval, including through delegation and group membership</li>
+<li>Audit log export for a single claim, readable by a non-engineer</li>
+<li>Escalation job tested against clock skew and timezones</li>
+</ul>
+</div>
+</div>
+<div class="ship"><h4>Shippable as</h4><p>The actual product. A tech lead confirms a colleague reached Kubernetes L3, the record is dated, attributed and auditable, and the team's capability picture becomes something a director would act on.</p></div>
+<div class="gap"><strong>Conscious gaps.</strong> No certificate to share outside yet, and all evidence is manual, so verifier load is at its highest here. Workaround: start pilots with a narrow skill set, three or four verifiers, and measure turnaround from day one.</div>
+</section>
+
+<section id="p5">
+<div class="shead"><span class="id">P5</span><h2>Certificates</h2></div>
+<p class="meta">3–4 weeks · depends on P4</p>
+<p class="lede">Every verified skill produces a signed credential anyone can check without an account.</p>
+<figure>
+<svg viewBox="0 0 700 108" role="img" aria-label="Phase five journey: verified assertion issues a credential, shared as a link, verified externally, expires and is renewed">
+<g><rect class="bt" x="2" y="26" width="128" height="52" rx="6"/><text class="dt" x="66" y="47" text-anchor="middle">Verified</text><text class="ds" x="66" y="64" text-anchor="middle">from P4</text></g>
+<line class="ar" x1="130" y1="52" x2="142" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bb" x="144" y="26" width="128" height="52" rx="6"/><text class="dt" x="208" y="47" text-anchor="middle">Issue and sign</text><text class="ds" x="208" y="64" text-anchor="middle">tenant key</text></g>
+<line class="ar" x1="272" y1="52" x2="284" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="286" y="26" width="128" height="52" rx="6"/><text class="dt" x="350" y="47" text-anchor="middle">Share</text><text class="ds" x="350" y="64" text-anchor="middle">link, QR, profile</text></g>
+<line class="ar" x1="414" y1="52" x2="426" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="428" y="26" width="128" height="52" rx="6"/><text class="dt" x="492" y="47" text-anchor="middle">Anyone checks</text><text class="ds" x="492" y="64" text-anchor="middle">no login</text></g>
+<line class="ar" x1="556" y1="52" x2="568" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="570" y="26" width="128" height="52" rx="6"/><text class="dt" x="634" y="47" text-anchor="middle">Expire, renew</text><text class="ds" x="634" y="64" text-anchor="middle">recert path</text></g>
+</svg>
+<figcaption>This is the phase that makes the credential worth earning rather than just worth recording.</figcaption>
+</figure>
+<div class="split">
+<div>
+<h4>Data and backend</h4>
+<ul class="tasks">
+<li>Schema: <code>issuer_key</code>, <code>credential</code>, <code>status_list</code></li>
+<li>KMS integration, one Ed25519 keypair per tenant, private keys never in the database</li>
+<li><code>did:web</code> document served from the tenant path</li>
+<li>Open Badges 3.0 payload builder including criteria, evidence kinds, rubric version, expiry and taxonomy alignment</li>
+<li>Signing worker on the queue, with retry and a dead-letter path</li>
+<li>Status list publication for revoked and expired credentials</li>
+<li>Expiry job driving <code>valid_until</code>, plus recertification claim creation</li>
+<li>Supersede on renewal, keeping the old credential verifiable and linked</li>
+<li>Key rotation keeping old public keys resolvable indefinitely</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul class="tasks">
+<li>Public verify page, server-rendered, no auth, fast on mobile</li>
+<li>Verify page shows the rubric in plain language for an outside reader</li>
+<li>Signature and status check result stated explicitly, including when it fails</li>
+<li>Share actions: link, QR, LinkedIn-ready payload, printable certificate</li>
+<li>Learner wallet listing credentials across every tenant they have belonged to</li>
+<li>Expiry warnings at 90, 30 and 7 days with a one-tap renewal start</li>
+<li>Certificate branding per tenant: logo, accent, issuer name</li>
+</ul>
+<h4>QA</h4>
+<ul class="tasks">
+<li>Payload validated against an external Open Badges 3.0 validator</li>
+<li>Revocation reflected on the public page within a minute</li>
+<li>Verify page load budget under one second cold</li>
+</ul>
+</div>
+</div>
+<div class="ship"><h4>Shippable as</h4><p>A verifiable credentialing platform. Someone leaves the company and keeps a credential their next employer can check, which is the strongest argument you have for learner buy-in.</p></div>
+<div class="gap"><strong>Conscious gaps.</strong> No wallet app integration and no cross-organisation recognition. Both are fine to defer, since the link is what people actually share.</div>
+</section>
+
+<section id="p6">
+<div class="shead"><span class="id">P6</span><h2>Assessment engine</h2></div>
+<p class="meta">4–5 weeks · depends on P4</p>
+<p class="lede">Lower levels become self-serve, which is the only way verifier load stays survivable as a tenant grows.</p>
+<figure>
+<svg viewBox="0 0 700 108" role="img" aria-label="Phase six journey: take an assessment, score, evidence attached automatically, verifier reviews only higher levels">
+<g><rect class="bn" x="2" y="26" width="128" height="52" rx="6"/><text class="dt" x="66" y="47" text-anchor="middle">Author items</text><text class="ds" x="66" y="64" text-anchor="middle">per skill level</text></g>
+<line class="ar" x1="130" y1="52" x2="142" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="144" y="26" width="128" height="52" rx="6"/><text class="dt" x="208" y="47" text-anchor="middle">Take attempt</text><text class="ds" x="208" y="64" text-anchor="middle">timed, randomised</text></g>
+<line class="ar" x1="272" y1="52" x2="284" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="286" y="26" width="128" height="52" rx="6"/><text class="dt" x="350" y="47" text-anchor="middle">Auto score</text><text class="ds" x="350" y="64" text-anchor="middle">server side</text></g>
+<line class="ar" x1="414" y1="52" x2="426" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="428" y="26" width="128" height="52" rx="6"/><text class="dt" x="492" y="47" text-anchor="middle">Becomes evidence</text><text class="ds" x="492" y="64" text-anchor="middle">attached to claim</text></g>
+<line class="ar" x1="556" y1="52" x2="568" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bt" x="570" y="26" width="128" height="52" rx="6"/><text class="dt" x="634" y="47" text-anchor="middle">L1–L2 fast path</text><text class="ds" x="634" y="64" text-anchor="middle">light review</text></g>
+</svg>
+<figcaption>A passed assessment is still evidence, not a decision. The fast path shortens review, it does not remove the signature.</figcaption>
+</figure>
+<div class="split">
+<div>
+<h4>Data and backend</h4>
+<ul class="tasks">
+<li>Schema: <code>item_bank</code>, <code>item</code>, <code>attempt</code>, <code>attempt_response</code>, <code>attempt_policy</code></li>
+<li>Stratified item draw with a stored seed so an attempt is reproducible for disputes</li>
+<li>Answers never sent to the client; scoring on submit only</li>
+<li>Cooldown and quarterly attempt caps enforced server side</li>
+<li>Per-item exposure counters with automatic retirement above a threshold</li>
+<li>Per-tenant item subsets drawn from a shared bank, since tenants are competing companies</li>
+<li>Answer-pattern similarity flags across attempts</li>
+<li>Auto-attach a passed attempt as evidence on the relevant claim</li>
+<li>Fast-path policy per level: what light review means for L1 and L2</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul class="tasks">
+<li>Item authoring screen plus CSV import for bulk bank building</li>
+<li>Attempt runner: one question per screen, timer, autosave, no back navigation</li>
+<li>Connection loss recovery that resumes rather than voids</li>
+<li>Result screen showing pass or fail, threshold and domain breakdown, never which items were wrong</li>
+<li>Cooldown stated as an exact date and time</li>
+<li>Artifact submission with a written rationale against the rubric</li>
+<li>Integrity report for admins: exposure, flags, approval anomalies</li>
+</ul>
+</div>
+</div>
+<div class="ship"><h4>Shippable as</h4><p>A self-serve certification path for foundational levels, with human review concentrated where judgement actually matters.</p></div>
+<div class="gap"><strong>Conscious gaps.</strong> No code sandbox, no proctoring, no item response theory. Multiple choice plus artifacts covers most of what an internal framework needs at L1 to L3.</div>
+</section>
+<section id="p7">
+<div class="shead"><span class="id">P7</span><h2>Rewards</h2></div>
+<p class="meta">3–4 weeks · depends on P4 · optional per tenant</p>
+<p class="lede">Verified progress pays out, on a ledger finance can audit.</p>
+<figure>
+<svg viewBox="0 0 700 108" role="img" aria-label="Phase seven journey: fund budget, set rules, verified event mints, learner redeems, finance reconciles">
+<g><rect class="bn" x="2" y="26" width="128" height="52" rx="6"/><text class="dt" x="66" y="47" text-anchor="middle">Fund budget</text><text class="ds" x="66" y="64" text-anchor="middle">tenant pool</text></g>
+<line class="ar" x1="130" y1="52" x2="142" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="144" y="26" width="128" height="52" rx="6"/><text class="dt" x="208" y="47" text-anchor="middle">Set rules</text><text class="ds" x="208" y="64" text-anchor="middle">XP and coins</text></g>
+<line class="ar" x1="272" y1="52" x2="284" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bt" x="286" y="26" width="128" height="52" rx="6"/><text class="dt" x="350" y="47" text-anchor="middle">Verified mints</text><text class="ds" x="350" y="64" text-anchor="middle">idempotent</text></g>
+<line class="ar" x1="414" y1="52" x2="426" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="428" y="26" width="128" height="52" rx="6"/><text class="dt" x="492" y="47" text-anchor="middle">Redeem</text><text class="ds" x="492" y="64" text-anchor="middle">reserve, settle</text></g>
+<line class="ar" x1="556" y1="52" x2="568" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="570" y="26" width="128" height="52" rx="6"/><text class="dt" x="634" y="47" text-anchor="middle">Reconcile</text><text class="ds" x="634" y="64" text-anchor="middle">burn and liability</text></g>
+</svg>
+<figcaption>XP ships with the rules engine and costs nothing. Coins stay locked until a tenant funds a budget.</figcaption>
+</figure>
+<div class="split">
+<div>
+<h4>Data and backend</h4>
+<ul class="tasks">
+<li>Schema: <code>xp_event</code> as single-entry, mint only</li>
+<li>Schema: <code>reward_account</code>, <code>reward_txn</code>, <code>reward_posting</code> with a zero-sum check constraint per transaction</li>
+<li>Idempotency key derived from source event and rule id, enforced unique</li>
+<li>Schema: <code>earning_rule</code> with version, caps and cooldowns; <code>reward_item</code>; <code>redemption</code></li>
+<li>Minting only from verified assertions, grade satisfaction, verification work performed and mentoring</li>
+<li>Blocked-mint queue when the budget pool is empty, surfaced to the admin</li>
+<li>Redemption as reserve, fulfil, settle, with rollback on vendor failure</li>
+<li>Reversal transactions on credential revocation</li>
+<li>Nightly balance snapshot, plus a reconciliation job asserting all accounts sum to zero</li>
+<li>Anomaly job: reciprocal verifier pairs, sub-minute approvals, outsized shares per verifier</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul class="tasks">
+<li>Wallet: coin balance, XP total, transaction history with every line linked to its cause</li>
+<li>Catalog leading with non-cash items: conference budget, stretch assignment, assessor status, learning day</li>
+<li>Redemption flow with a clear reserved state while fulfilment is pending</li>
+<li>Cohort standing as an opt-in percentile band, with no global leaderboard anywhere</li>
+<li>XP label configurable per tenant, since game vocabulary does not suit every organisation</li>
+<li>Admin: earning rule editor with a dry run over the last 30 days of events</li>
+<li>Admin: burn against budget, outstanding liability, per-person annual redeemed total for payroll</li>
+</ul>
+</div>
+</div>
+<div class="ship"><h4>Shippable as</h4><p>A recognition programme tied to proven capability rather than attendance, with a ledger that survives a finance review.</p></div>
+<div class="gap"><strong>Conscious gaps.</strong> No vendor integrations, so redemption fulfilment is a manual admin action against an order queue. That is genuinely fine for the first several tenants.</div>
+</section>
+
+<section id="p8">
+<div class="shead"><span class="id">P8</span><h2>Automation and analytics</h2></div>
+<p class="meta">4–6 weeks · depends on P4 · first scale-oriented phase</p>
+<p class="lede">The loop runs without an administrator pushing it, and leaders get answers they cannot get anywhere else.</p>
+<figure>
+<svg viewBox="0 0 700 108" role="img" aria-label="Phase eight journey: events feed rules, rules act, reports read from a replica, admins export">
+<g><rect class="bn" x="2" y="26" width="128" height="52" rx="6"/><text class="dt" x="66" y="47" text-anchor="middle">Events</text><text class="ds" x="66" y="64" text-anchor="middle">append only</text></g>
+<line class="ar" x1="130" y1="52" x2="142" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="144" y="26" width="128" height="52" rx="6"/><text class="dt" x="208" y="47" text-anchor="middle">Rules fire</text><text class="ds" x="208" y="64" text-anchor="middle">assign, notify, mint</text></g>
+<line class="ar" x1="272" y1="52" x2="284" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="286" y="26" width="128" height="52" rx="6"/><text class="dt" x="350" y="47" text-anchor="middle">Read models</text><text class="ds" x="350" y="64" text-anchor="middle">off the replica</text></g>
+<line class="ar" x1="414" y1="52" x2="426" y2="52" marker-end="url(#arw)"/>
+<g><rect class="bt" x="428" y="26" width="128" height="52" rx="6"/><text class="dt" x="492" y="47" text-anchor="middle">Reports</text><text class="ds" x="492" y="64" text-anchor="middle">scoped by org</text></g>
+<line class="ar" x1="556" y1="52" x2="568" y2="52" marker-end="url(#arw)"/>
+<g><rect class="b" x="570" y="26" width="128" height="52" rx="6"/><text class="dt" x="634" y="47" text-anchor="middle">Export</text><text class="ds" x="634" y="64" text-anchor="middle">CSV, per tenant</text></g>
+</svg>
+<figcaption>Also the phase where the compliance obligations get built: export, deletion, retention and impersonation controls.</figcaption>
+</figure>
+<div class="split">
+<div>
+<h4>Data and backend</h4>
+<ul class="tasks">
+<li>Schema: <code>event</code> with a fixed verb vocabulary, backfilled from existing tables</li>
+<li>Schema: <code>rule</code>, <code>rule_run</code>, <code>notification</code></li>
+<li>Rule evaluation in a worker, keyed on event id so replay is idempotent</li>
+<li>Scheduled triggers: expiry at 90, 30 and 7 days; stalled roadmap after 30 days; weekly verifier digest</li>
+<li>Fixed action set: assign roadmap, notify, mint reward, grant temporary delegation, flag for review</li>
+<li>Read replica plus nightly read models for reports</li>
+<li>The seven MVP reports, each scoped through <code>can()</code></li>
+<li>Per-tenant export and hard delete, covering object storage</li>
+<li>Retention jobs for evidence artifacts</li>
+<li>Time-boxed platform impersonation with reason, tenant-admin notification and a separate log</li>
+<li>Load test at 50,000 members in one tenant; query budget review</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul class="tasks">
+<li>Rules list with plain-language summaries readable without opening them</li>
+<li>Rule editor as a guided form with a dry run reporting who would have been affected</li>
+<li>Notification preferences per person per kind, with daily batching by default</li>
+<li>Report screens with org scope selector, date range and CSV export</li>
+<li>Audit log viewer for admins, filterable by person, claim or action</li>
+<li>Admin health panel: verifier queue depth, SLA breaches, blocked mints, failed jobs</li>
+</ul>
+</div>
+</div>
+<div class="ship"><h4>Shippable as</h4><p>A platform an organisation can run at scale without your team in the loop, and one that can pass a procurement and privacy review.</p></div>
+</section>
+
+<section id="matrix">
+<div class="shead"><span class="id">M</span><h2>Feature accretion</h2></div>
+<p class="lede">What exists after each phase. Nothing is removed, and each column is a coherent product.</p>
+<table>
+<thead><tr><th style="width:30%">Capability</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>P6</th><th>P7</th><th>P8</th></tr></thead>
+<tbody>
+<tr><td>Multi-tenant orgs and people</td><td class="y">yes</td><td>·</td><td>·</td><td>·</td><td>·</td><td>·</td><td>·</td><td>·</td></tr>
+<tr><td>Roles and permissions</td><td class="y">yes</td><td>·</td><td>·</td><td class="y">+authority</td><td>·</td><td>·</td><td>·</td><td>·</td></tr>
+<tr><td>Skill directory</td><td class="y">flat</td><td class="y">+levels</td><td>·</td><td>·</td><td>·</td><td>·</td><td>·</td><td>·</td></tr>
+<tr><td>Job grades and gap view</td><td>—</td><td class="y">yes</td><td>·</td><td class="y">verified</td><td>·</td><td>·</td><td>·</td><td>·</td></tr>
+<tr><td>Learning resources</td><td>—</td><td>—</td><td class="y">yes</td><td>·</td><td>·</td><td>·</td><td>·</td><td>·</td></tr>
+<tr><td>Roadmaps</td><td>—</td><td>—</td><td class="y">yes</td><td>·</td><td>·</td><td>·</td><td>·</td><td>·</td></tr>
+<tr><td>Human verification</td><td>—</td><td>—</td><td>—</td><td class="y">yes</td><td>·</td><td>·</td><td>·</td><td>·</td></tr>
+<tr><td>Shareable certificates</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="y">yes</td><td>·</td><td>·</td><td>·</td></tr>
+<tr><td>Assessments</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="y">yes</td><td>·</td><td>·</td></tr>
+<tr><td>XP and coins</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="y">yes</td><td>·</td></tr>
+<tr><td>Automation and reports</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="y">yes</td></tr>
+</tbody>
+</table>
+<p>The one rule that holds across every column: self-declared and verified are always separate, and only verified data leaves the team it belongs to.</p>
+</section>
+
+<section id="cut">
+<div class="shead"><span class="id">C</span><h2>What to cut first</h2></div>
+<p class="lede">Assume you will run out of time somewhere around phase five. Cut in this order.</p>
+<table>
+<thead><tr><th style="width:30%">Cut</th><th>Cost of cutting</th></tr></thead>
+<tbody>
+<tr><td>Resource catalog (P3)</td><td>Low. People already learn elsewhere. Keep the roadmap, drop the curated links and the ratings. If the pilot shows nobody uses it, cut it permanently.</td></tr>
+<tr><td>Rewards (P7)</td><td>Low at first. XP alone is cheap and covers most of the motivational value. Coins can wait for a tenant who asks and funds a budget.</td></tr>
+<tr><td>Assessment engine (P6)</td><td>Medium. Verifiers absorb the load instead, which works for a pilot of 200 people and breaks at 2,000.</td></tr>
+<tr><td>Automation (P8)</td><td>Medium. Admins do it by hand. Painful but survivable while tenant count is small.</td></tr>
+<tr><td>Certificates (P5)</td><td>High. You lose the learner-side reason to care. Cut the wallet and branding, keep a signed verify page.</td></tr>
+<tr><td>Verification (P4)</td><td>Never. Without it you have built an ordinary LMS with extra steps.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="dod">
+<div class="shead"><span class="id">D</span><h2>Definition of done</h2></div>
+<p class="lede">Applies to every phase. A phase is not finished until all of these are true.</p>
+<ul class="tasks">
+<li>Every new tenant-scoped table has RLS enabled and forced, with a policy test</li>
+<li>The isolation suite has a new case for every list endpoint added</li>
+<li>Every write endpoint accepts an idempotency key and is safe to retry</li>
+<li>Every state-changing action writes an audit entry with actor, before and after</li>
+<li>Permissions tested per role, including the negative cases</li>
+<li>Background jobs carry explicit tenant context and fail closed when it is absent</li>
+<li>Migrations are additive first, with backfill and cleanup as separate releases</li>
+<li>The phase is behind a feature flag with a tested rollback</li>
+<li>The demo script runs end to end on staging with seeded data</li>
+<li>Conscious gaps for the phase are written down and shared with pilot customers</li>
+</ul>
+<h3>Metrics to instrument from phase four onward</h3>
+<ul>
+<li>Median and p90 verification turnaround. The single health metric for the whole product.</li>
+<li>Claims submitted per active member per month.</li>
+<li>Return rate on claims, split by verifier. High variance means the rubrics are not doing their job.</li>
+<li>Disagreement rate when two verifiers see the same evidence.</li>
+<li>Share of verified assertions that reach expiry without renewal.</li>
+</ul>
+</section>
+</main>
+</div>
+</body>
+</html>

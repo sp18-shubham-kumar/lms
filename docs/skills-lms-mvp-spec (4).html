@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skills LMS — MVP specification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1B2027; --slate:#5B6478; --faint:#8A929D;
+  --line:#DBDFE5; --paper:#FFFFFF; --panel:#F4F5F8;
+  --navy:#24304F; --navy-t:#E6EAF3;
+  --brass:#8E6812; --brass-t:#F7EFDA;
+  --teal:#14705A; --teal-t:#E1F0EB;
+  --warn:#A03B26; --warn-t:#F9E9E4;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Archivo",system-ui,sans-serif; font-size:16px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{display:grid; grid-template-columns:236px minmax(0,1fr); gap:56px; max-width:1180px; margin:0 auto; padding:0 32px}
+nav{position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto; padding:48px 0 48px; border-right:1px solid var(--line)}
+nav h2{font-size:12px; font-weight:500; letter-spacing:.02em; color:var(--faint); margin:0 0 14px}
+nav ol{list-style:none; margin:0 0 26px; padding:0}
+nav li{margin:0 0 2px}
+nav a{display:flex; gap:10px; text-decoration:none; color:var(--slate); font-size:13.5px; line-height:1.4; padding:4px 10px 4px 0; border-radius:3px}
+nav a:hover{color:var(--ink)}
+nav a:focus-visible{outline:2px solid var(--navy); outline-offset:2px}
+nav a .id{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--brass); padding-top:2px; min-width:26px}
+main{padding:48px 0 120px; max-width:780px}
+.hero{border-bottom:1px solid var(--line); padding-bottom:40px; margin-bottom:44px}
+.hero .kick{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--brass); margin:0 0 20px}
+.hero h1{font-size:37px; line-height:1.16; font-weight:600; letter-spacing:-.018em; margin:0 0 18px; max-width:19ch}
+.hero p{font-size:18px; line-height:1.55; color:var(--slate); margin:0; max-width:60ch}
+h2{font-size:23px; font-weight:600; letter-spacing:-.012em; margin:0 0 6px}
+h3{font-size:16.5px; font-weight:600; margin:30px 0 8px}
+h4{font-size:13.5px; font-weight:600; margin:20px 0 6px; color:var(--navy)}
+p{margin:0 0 14px; max-width:72ch}
+ul{margin:0 0 16px; padding-left:20px; max-width:72ch}
+li{margin:0 0 6px}
+section{padding-top:52px}
+.shead{display:flex; align-items:baseline; gap:14px; border-top:1px solid var(--ink); padding-top:14px; margin-bottom:16px}
+.shead .id{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--brass); padding-top:5px}
+.lede{color:var(--slate); font-size:16.5px; max-width:66ch}
+code{font-family:"JetBrains Mono",monospace; font-size:.86em; background:var(--panel); padding:1px 5px; border-radius:3px}
+pre{font-family:"JetBrains Mono",monospace; font-size:12.5px; line-height:1.6; background:var(--panel); border-left:2px solid var(--navy); border-radius:0; padding:16px 18px; overflow-x:auto; margin:0 0 18px}
+pre code{background:none; padding:0; font-size:inherit}
+figure{margin:22px 0 24px; background:var(--panel); padding:20px 22px 14px; border-radius:4px}
+figure svg{display:block; width:100%; height:auto}
+figcaption{font-size:12.5px; color:var(--slate); margin-top:10px; line-height:1.5}
+table{border-collapse:collapse; width:100%; font-size:14px; margin:0 0 20px}
+th,td{text-align:left; vertical-align:top; padding:9px 12px 9px 0; border-bottom:1px solid var(--line)}
+th{font-weight:600; font-size:12.5px; color:var(--navy); border-bottom:1px solid var(--ink)}
+.split{display:grid; grid-template-columns:1fr 1fr; gap:0 34px}
+.split h4{margin-top:14px}
+.note{border-left:2px solid var(--brass); padding:2px 0 2px 16px; margin:18px 0; color:var(--slate); font-size:14.5px; max-width:68ch}
+.dt{font:500 13px "Archivo",sans-serif; fill:var(--ink)}
+.ds{font:400 11.5px "Archivo",sans-serif; fill:var(--slate)}
+.dl{font:500 11px "JetBrains Mono",monospace; fill:var(--brass)}
+.dm{font:400 11.5px "JetBrains Mono",monospace; fill:var(--slate)}
+.b{fill:var(--paper); stroke:var(--line); stroke-width:1}
+.bn{fill:var(--navy-t); stroke:#B9C3DA; stroke-width:1}
+.bb{fill:var(--brass-t); stroke:#DCC48C; stroke-width:1}
+.bt{fill:var(--teal-t); stroke:#A6CFC2; stroke-width:1}
+.bw{fill:var(--warn-t); stroke:#E0B3A6; stroke-width:1}
+.bd{fill:none; stroke:var(--faint); stroke-width:1; stroke-dasharray:4 4}
+.ar{stroke:var(--slate); stroke-width:1; fill:none}
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr; gap:0}
+  nav{position:static; height:auto; border-right:0; border-bottom:1px solid var(--line); padding:28px 0}
+  nav ol{columns:2; margin-bottom:14px}
+  .hero h1{font-size:29px}
+  .split{grid-template-columns:1fr}
+}
+@media print{nav{display:none} .wrap{grid-template-columns:1fr} section{page-break-inside:avoid}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+</marker></defs></svg>
+
+<div class="wrap">
+<nav aria-label="Contents">
+  <h2>Components</h2>
+  <ol>
+    <li><a href="#overview"><span class="id">00</span><span>Overview and scope</span></a></li>
+    <li><a href="#c1"><span class="id">C1</span><span>Tenancy and identity</span></a></li>
+    <li><a href="#c2"><span class="id">C2</span><span>Authorization</span></a></li>
+    <li><a href="#c3"><span class="id">C3</span><span>Skill taxonomy</span></a></li>
+    <li><a href="#c4"><span class="id">C4</span><span>Job profiles and grades</span></a></li>
+    <li><a href="#c5"><span class="id">C5</span><span>Resource catalog</span></a></li>
+    <li><a href="#c6"><span class="id">C6</span><span>Roadmap engine</span></a></li>
+    <li><a href="#c7"><span class="id">C7</span><span>Assessment engine</span></a></li>
+    <li><a href="#c8"><span class="id">C8</span><span>Evidence and verification</span></a></li>
+    <li><a href="#c9"><span class="id">C9</span><span>Credentials</span></a></li>
+    <li><a href="#c10"><span class="id">C10</span><span>Rewards ledger</span></a></li>
+    <li><a href="#c11"><span class="id">C11</span><span>Events and analytics</span></a></li>
+    <li><a href="#c12"><span class="id">C12</span><span>Automation rules</span></a></li>
+    <li><a href="#c13"><span class="id">C13</span><span>Admin console</span></a></li>
+  </ol>
+  <h2>Cross-cutting</h2>
+  <ol>
+    <li><a href="#frontend"><span class="id">F</span><span>Frontend architecture</span></a></li>
+    <li><a href="#backend"><span class="id">B</span><span>Backend architecture</span></a></li>
+    <li><a href="#security"><span class="id">S</span><span>Isolation and audit</span></a></li>
+    <li><a href="#plan"><span class="id">P</span><span>Build order</span></a></li>
+    <li><a href="#future"><span class="id">X</span><span>Future scope</span></a></li>
+  </ol>
+</nav>
+
+<main>
+<div class="hero">
+  <p class="kick">MVP specification / v1 draft</p>
+  <h1>A skills platform where a human signature is the source of truth</h1>
+  <p>Learners study anywhere. The platform holds the skill map, decides who is allowed to confirm what, records the evidence, and pays out only against confirmations. Multi-tenant across separate organisations.</p>
+</div>
+
+<section id="overview">
+<div class="shead"><span class="id">00</span><h2>Overview and scope</h2></div>
+<p class="lede">Three commitments shape every decision in this document.</p>
+<ul>
+  <li><strong>Content is not the product.</strong> A person can learn from YouTube, a book, or a colleague. The platform tracks skills, not course completions, so nothing depends on hosting or authoring material.</li>
+  <li><strong>Verification is permission-based.</strong> Each organisation nominates who may confirm which skill at which level. A tech lead confirms backend skills up to L4 in their own department and nothing else. That rule is data, not code.</li>
+  <li><strong>Two-tier confidence.</strong> A self-claim and a verified assertion are separate records. Reports, promotions and rewards read only the verified tier.</li>
+</ul>
+
+<h3>System map</h3>
+<figure>
+<svg viewBox="0 0 700 300" role="img" aria-label="Four-layer architecture: role surfaces, API gateway, feature modules, and storage">
+<text class="dl" x="0" y="44">clients</text>
+<g><rect class="bn" x="96" y="16" width="170" height="48" rx="6"/><text class="dt" x="181" y="37" text-anchor="middle">Learner app</text><text class="ds" x="181" y="53" text-anchor="middle">roadmap, evidence</text></g>
+<g><rect class="bn" x="286" y="16" width="170" height="48" rx="6"/><text class="dt" x="371" y="37" text-anchor="middle">Verifier app</text><text class="ds" x="371" y="53" text-anchor="middle">review queue</text></g>
+<g><rect class="bn" x="476" y="16" width="170" height="48" rx="6"/><text class="dt" x="561" y="37" text-anchor="middle">Admin console</text><text class="ds" x="561" y="53" text-anchor="middle">taxonomy, grants</text></g>
+<line class="ar" x1="371" y1="64" x2="371" y2="84" marker-end="url(#arw)"/>
+<text class="dl" x="0" y="116">api</text>
+<g><rect class="b" x="96" y="88" width="550" height="48" rx="6"/><text class="dt" x="371" y="109" text-anchor="middle">Gateway: session, tenant context, permission gate, rate limit</text><text class="ds" x="371" y="125" text-anchor="middle">every request resolves to one tenant before it touches a module</text></g>
+<line class="ar" x1="371" y1="136" x2="371" y2="156" marker-end="url(#arw)"/>
+<text class="dl" x="0" y="188">modules</text>
+<g><rect class="b" x="96" y="160" width="104" height="48" rx="6"/><text class="dt" x="148" y="189" text-anchor="middle">Skills</text></g>
+<g><rect class="b" x="206" y="160" width="104" height="48" rx="6"/><text class="dt" x="258" y="189" text-anchor="middle">Roadmaps</text></g>
+<g><rect class="bb" x="316" y="160" width="104" height="48" rx="6"/><text class="dt" x="368" y="189" text-anchor="middle">Verify</text></g>
+<g><rect class="bt" x="426" y="160" width="104" height="48" rx="6"/><text class="dt" x="478" y="189" text-anchor="middle">Credentials</text></g>
+<g><rect class="bt" x="536" y="160" width="110" height="48" rx="6"/><text class="dt" x="591" y="189" text-anchor="middle">Rewards</text></g>
+<line class="ar" x1="371" y1="208" x2="371" y2="228" marker-end="url(#arw)"/>
+<text class="dl" x="0" y="260">storage</text>
+<g><rect class="b" x="96" y="232" width="170" height="48" rx="6"/><text class="dt" x="181" y="253" text-anchor="middle">Postgres</text><text class="ds" x="181" y="269" text-anchor="middle">row-level security</text></g>
+<g><rect class="b" x="286" y="232" width="170" height="48" rx="6"/><text class="dt" x="371" y="253" text-anchor="middle">Object store</text><text class="ds" x="371" y="269" text-anchor="middle">evidence artifacts</text></g>
+<g><rect class="b" x="476" y="232" width="170" height="48" rx="6"/><text class="dt" x="561" y="253" text-anchor="middle">Event store</text><text class="ds" x="561" y="269" text-anchor="middle">append-only</text></g>
+</svg>
+<figcaption>One deployment, one database, many tenants. Modules own their tables and talk to each other through service calls, never shared joins.</figcaption>
+</figure>
+
+<h3>What ships in the MVP</h3>
+<table>
+<thead><tr><th style="width:26%">Component</th><th style="width:37%">In</th><th>Deferred</th></tr></thead>
+<tbody>
+<tr><td>C1 Tenancy</td><td>Tenant provisioning, org units, email + OIDC login, global person record</td><td>SCIM sync, custom domains, data residency</td></tr>
+<tr><td>C2 Authorization</td><td>Capabilities, scoped role grants, verifier authority table</td><td>Delegation calendars, approval chains beyond two levels</td></tr>
+<tr><td>C3 Taxonomy</td><td>Skills, 5 levels with rubrics, prerequisites, tenant overlay</td><td>Imported ESCO/SFIA library, AI skill extraction</td></tr>
+<tr><td>C4 Job profiles</td><td>Tracks, grades, required skill levels, readiness diff</td><td>Succession planning, org-wide workforce modelling</td></tr>
+<tr><td>C5 Resources</td><td>External link records mapped to skill levels, learner submissions</td><td>SCORM/cmi5 player, vendor catalog integrations</td></tr>
+<tr><td>C6 Roadmaps</td><td>Gap-driven generation, prerequisite ordering, manual templates</td><td>Adaptive resequencing, cohort programs</td></tr>
+<tr><td>C7 Assessment</td><td>Quiz banks, randomised attempts, cooldowns, artifact upload</td><td>Code sandbox, proctoring, item response theory</td></tr>
+<tr><td>C8 Verification</td><td>Full state machine, rubric capture, quorum, SLA escalation, audit log</td><td>Multi-rater calibration analytics, appeals workflow</td></tr>
+<tr><td>C9 Credentials</td><td>Open Badges 3.0 issuance, per-tenant signing, public verify page, revocation</td><td>Wallet apps, CLR bundles, cross-org recognition</td></tr>
+<tr><td>C10 Rewards</td><td>XP counter, double-entry coin ledger, budget pool, redemption escrow</td><td>Vendor catalog integrations, payroll export</td></tr>
+<tr><td>C11 Analytics</td><td>Event store, skill coverage and gap reports, verifier throughput</td><td>Warehouse, embedded BI, predictive attrition</td></tr>
+<tr><td>C12 Automation</td><td>Rules on verified events, expiry reminders, digest emails</td><td>Visual rule builder, webhooks out</td></tr>
+<tr><td>C13 Admin</td><td>Taxonomy editor, authority grants, member import, reward rules</td><td>White-label theming beyond logo and accent</td></tr>
+</tbody>
+</table>
+<div class="note">The deferred column is not a wish list. Each item is deferred because the MVP can prove or disprove the product without it, and every one of them costs more than a component listed as in.</div>
+</section>
+
+<section id="c1">
+<div class="shead"><span class="id">C1</span><h2>Tenancy and identity</h2></div>
+<p class="lede">Tenants are unrelated companies. A person is not owned by a tenant.</p>
+<figure>
+<svg viewBox="0 0 700 260" role="img" aria-label="A global person record joins tenants through membership; each tenant holds its own org units">
+<g><rect class="bb" x="14" y="100" width="146" height="54" rx="6"/><text class="dt" x="87" y="122" text-anchor="middle">Person</text><text class="ds" x="87" y="140" text-anchor="middle">global identity</text></g>
+<line class="ar" x1="160" y1="127" x2="196" y2="127" marker-end="url(#arw)"/>
+<rect class="bd" x="200" y="16" width="486" height="228" rx="10"/>
+<text class="dl" x="216" y="40">platform</text>
+<g><rect class="bn" x="218" y="56" width="216" height="172" rx="8"/><text class="dt" x="326" y="80" text-anchor="middle">Tenant: Acme</text></g>
+<g><rect class="b" x="234" y="96" width="184" height="52" rx="5"/><text class="dt" x="326" y="118" text-anchor="middle">Membership</text><text class="ds" x="326" y="135" text-anchor="middle">role, org unit, grade</text></g>
+<g><rect class="b" x="234" y="160" width="184" height="52" rx="5"/><text class="dt" x="326" y="182" text-anchor="middle">Org units</text><text class="ds" x="326" y="199" text-anchor="middle">own hierarchy and IdP</text></g>
+<g><rect class="bn" x="452" y="56" width="216" height="172" rx="8"/><text class="dt" x="560" y="80" text-anchor="middle">Tenant: Northwind</text></g>
+<g><rect class="b" x="468" y="96" width="184" height="52" rx="5"/><text class="dt" x="560" y="118" text-anchor="middle">Membership</text><text class="ds" x="560" y="135" text-anchor="middle">separate, invisible</text></g>
+<g><rect class="b" x="468" y="160" width="184" height="52" rx="5"/><text class="dt" x="560" y="182" text-anchor="middle">Org units</text><text class="ds" x="560" y="199" text-anchor="middle">own hierarchy and IdP</text></g>
+</svg>
+<figcaption>One person can hold memberships in two tenants and keeps their credentials after both memberships end.</figcaption>
+</figure>
+<pre><code>person(id, email UNIQUE, display_name, did, created_at)
+tenant(id, slug UNIQUE, name, status, plan, accent_color, logo_url)
+org_unit(id, tenant_id, parent_id, name, path LTREE)
+membership(id, person_id, tenant_id, org_unit_id, job_profile_id,
+           employee_ref, status, joined_at, ended_at)
+           UNIQUE(person_id, tenant_id)
+identity_provider(id, tenant_id, kind, issuer, client_id, domain_hint)</code></pre>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>Every row outside <code>person</code> and <code>tenant</code> carries <code>tenant_id</code>. No exceptions, including join tables.</li>
+<li><code>org_unit.path</code> as a materialised path makes subtree scope checks a single index lookup, which C2 calls on every request.</li>
+<li>Login resolves an email to a person, then lists their active memberships. One membership means straight in; two or more means a tenant picker.</li>
+<li>Tenant provisioning is a single transaction: tenant row, root org unit, seeded role bundles, taxonomy overlay pointer, empty budget pool, signing keypair.</li>
+<li>Ending a membership revokes sessions and hides the person from tenant reports, but never deletes their assertions. Verification history is the tenant's audit record.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>Tenant resolved from subdomain, falling back to a picker at <code>/choose</code>. Accent colour and logo load with the session so the shell never flashes unbranded.</li>
+<li>The tenant name sits in the top bar permanently. People working across two organisations must never be uncertain which one they are acting in.</li>
+<li>Org unit picker is a searchable tree, not a flat select. Ten thousand people in a flat list is unusable.</li>
+<li>Invite flow accepts a CSV of email, org unit, job profile, and shows a dry-run diff before committing.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="c2">
+<div class="shead"><span class="id">C2</span><h2>Authorization</h2></div>
+<p class="lede">Roles get a person into the application. Authority lets them sign a specific claim. These are different systems.</p>
+<figure>
+<svg viewBox="0 0 700 148" role="img" aria-label="Five sequential checks: session, capability, authority, scope, decision">
+<g><rect class="b" x="10" y="30" width="120" height="54" rx="6"/><text class="dt" x="70" y="52" text-anchor="middle">Session</text><text class="ds" x="70" y="69" text-anchor="middle">person + tenant</text></g>
+<line class="ar" x1="130" y1="57" x2="146" y2="57" marker-end="url(#arw)"/>
+<g><rect class="b" x="150" y="30" width="120" height="54" rx="6"/><text class="dt" x="210" y="52" text-anchor="middle">Capability</text><text class="ds" x="210" y="69" text-anchor="middle">skill.verify</text></g>
+<line class="ar" x1="270" y1="57" x2="286" y2="57" marker-end="url(#arw)"/>
+<g><rect class="bb" x="290" y="30" width="120" height="54" rx="6"/><text class="dt" x="350" y="52" text-anchor="middle">Authority</text><text class="ds" x="350" y="69" text-anchor="middle">skill and level</text></g>
+<line class="ar" x1="410" y1="57" x2="426" y2="57" marker-end="url(#arw)"/>
+<g><rect class="bb" x="430" y="30" width="120" height="54" rx="6"/><text class="dt" x="490" y="52" text-anchor="middle">Scope</text><text class="ds" x="490" y="69" text-anchor="middle">org subtree</text></g>
+<line class="ar" x1="550" y1="57" x2="566" y2="57" marker-end="url(#arw)"/>
+<g><rect class="bt" x="570" y="30" width="120" height="54" rx="6"/><text class="dt" x="630" y="52" text-anchor="middle">Decision</text><text class="ds" x="630" y="69" text-anchor="middle">allow or deny</text></g>
+<text class="dm" x="10" y="120">can(actor, capability, resource) — one entry point, deny by default</text>
+</svg>
+<figcaption>Capability answers "may this person ever verify?". Authority answers "may they verify this?".</figcaption>
+</figure>
+<pre><code>capability(key)                        -- flat list, seeded, not tenant-editable
+role(id, tenant_id, name, is_system)
+role_capability(role_id, capability_key)
+role_grant(id, tenant_id, principal_type, principal_id, role_id,
+           scope_type, scope_id)      -- principal: person | group
+
+verifier_authority(id, tenant_id, principal_type, principal_id,
+  skill_id NULL, skill_group_id NULL, max_level,
+  scope_org_unit_id, requires_quorum, can_delegate,
+  valid_from, valid_to, granted_by, revoked_at)</code></pre>
+<h3>Seeded capabilities</h3>
+<table>
+<thead><tr><th style="width:34%">Key</th><th>Held by</th></tr></thead>
+<tbody>
+<tr><td><code>skill.claim.submit</code></td><td>Everyone with a membership</td></tr>
+<tr><td><code>skill.verify</code></td><td>Verifier role, gated further by authority</td></tr>
+<tr><td><code>verifier.grant</code></td><td>Org admin only. Separate capability from everything else.</td></tr>
+<tr><td><code>credential.revoke</code></td><td>Org admin only, always logged with a reason</td></tr>
+<tr><td><code>taxonomy.edit</code>, <code>jobprofile.edit</code></td><td>L&amp;D admin</td></tr>
+<tr><td><code>reward.rule.edit</code>, <code>reward.budget.fund</code></td><td>Split deliberately: who sets rules is not who releases money</td></tr>
+<tr><td><code>report.org.view</code></td><td>Manager, scoped to their subtree</td></tr>
+<tr><td><code>member.invite</code>, <code>member.offboard</code></td><td>Org admin</td></tr>
+</tbody>
+</table>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>One function, <code>can(actor, capability, resource)</code>, plus a bulk variant that returns a filter predicate for list endpoints. Nothing bypasses it.</li>
+<li>Resolved capability set cached in Redis per session, invalidated on any <code>role_grant</code> or <code>verifier_authority</code> write.</li>
+<li>Authority resolution is a single query: rows matching principal or their groups, where <code>max_level &gt;= requested</code>, the skill matches directly or through <code>skill_group</code>, the learner's org path is inside <code>scope_org_unit</code>, and now falls inside the validity window.</li>
+<li>Written in plain SQL rather than a policy engine. Auditors and new engineers both need to read it.</li>
+<li>Every deny is logged with the failing check. "Permission denied" with no reason generates support tickets forever.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>Session response carries the capability set. The shell hides what cannot be done rather than showing a dead control.</li>
+<li>Authority is shown positively on the verifier's own profile: which skills, up to which level, for which teams. People need to know the shape of their own mandate.</li>
+<li>The grant screen is a matrix, not a form: principals down, skill groups across, level as the cell value. Bulk editing is the normal case.</li>
+<li>Denied actions explain the missing piece and offer to request it, which creates an audit trail of who wanted what.</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="c3">
+<div class="shead"><span class="id">C3</span><h2>Skill taxonomy and levels</h2></div>
+<p class="lede">A taxonomy classifies. A framework assesses. You need both, and they are different tables.</p>
+<figure>
+<svg viewBox="0 0 700 250" role="img" aria-label="A domain contains skills; each skill carries five defined levels">
+<g><rect class="bn" x="270" y="14" width="160" height="46" rx="6"/><text class="dt" x="350" y="42" text-anchor="middle">Domain: Backend</text></g>
+<path class="ar" d="M350 60 L350 76 L255 76 L255 90" marker-end="url(#arw)"/>
+<path class="ar" d="M350 60 L350 76 L445 76 L445 90" marker-end="url(#arw)"/>
+<g><rect class="b" x="170" y="90" width="170" height="44" rx="6"/><text class="dt" x="255" y="117" text-anchor="middle">Postgres</text></g>
+<g><rect class="b" x="360" y="90" width="170" height="44" rx="6"/><text class="dt" x="445" y="117" text-anchor="middle">Kubernetes</text></g>
+<line class="ar" x1="445" y1="134" x2="445" y2="150"/>
+<line class="ar" x1="82" y1="150" x2="618" y2="150"/>
+<line class="ar" x1="82" y1="150" x2="82" y2="164" marker-end="url(#arw)"/>
+<line class="ar" x1="216" y1="150" x2="216" y2="164" marker-end="url(#arw)"/>
+<line class="ar" x1="350" y1="150" x2="350" y2="164" marker-end="url(#arw)"/>
+<line class="ar" x1="484" y1="150" x2="484" y2="164" marker-end="url(#arw)"/>
+<line class="ar" x1="618" y1="150" x2="618" y2="164" marker-end="url(#arw)"/>
+<g><rect class="b" x="20" y="164" width="124" height="44" rx="5"/><text class="dt" x="82" y="184" text-anchor="middle">L1 Aware</text><text class="ds" x="82" y="199" text-anchor="middle">quiz</text></g>
+<g><rect class="b" x="154" y="164" width="124" height="44" rx="5"/><text class="dt" x="216" y="184" text-anchor="middle">L2 Assisted</text><text class="ds" x="216" y="199" text-anchor="middle">quiz</text></g>
+<g><rect class="bb" x="288" y="164" width="124" height="44" rx="5"/><text class="dt" x="350" y="184" text-anchor="middle">L3 Independent</text><text class="ds" x="350" y="199" text-anchor="middle">artifact</text></g>
+<g><rect class="bb" x="422" y="164" width="124" height="44" rx="5"/><text class="dt" x="484" y="184" text-anchor="middle">L4 Leads</text><text class="ds" x="484" y="199" text-anchor="middle">observation</text></g>
+<g><rect class="bb" x="556" y="164" width="124" height="44" rx="5"/><text class="dt" x="618" y="184" text-anchor="middle">L5 Sets direction</text><text class="ds" x="618" y="199" text-anchor="middle">panel</text></g>
+<text class="dm" x="20" y="236">each level: behavioural indicators + accepted evidence + minimum verifier authority</text>
+</svg>
+<figcaption>The evidence type escalates with the level. That single rule is what stops L5 from being a quiz someone passed twice.</figcaption>
+</figure>
+<pre><code>skill_domain(id, tenant_id NULL, name, sort)      -- NULL tenant = global
+skill(id, tenant_id NULL, domain_id, name, slug,
+      external_code, description, status, version)
+skill_level(id, skill_id, level SMALLINT,          -- 1..5
+      title, indicators TEXT[], evidence_kinds TEXT[],
+      min_verifier_level, validity_months)
+skill_edge(from_skill_id, to_skill_id, kind)       -- prerequisite | adjacent
+tenant_skill_override(tenant_id, skill_id, name, status, hidden)</code></pre>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>Global rows have <code>tenant_id IS NULL</code>. A tenant reading the taxonomy sees global rows left-joined to its overrides, which is copy-on-write: renaming a skill writes an override row and leaves the global untouched.</li>
+<li>Skills are versioned, never mutated in place. An assertion records the <code>skill_level</code> version it was judged against, so rewriting a rubric next year does not retroactively change what someone was certified for.</li>
+<li><code>skill_edge</code> must stay acyclic. Reject the insert that would create a cycle rather than defending against it at read time in the roadmap engine.</li>
+<li>Retiring a skill sets status and stops new claims. It never deletes, because assertions point at it.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>Browse by domain, search across everything. Search matters more than the tree once there are two hundred skills.</li>
+<li>The level rubric is the primary content of a skill page. Learners read it to know what to aim at; verifiers read it while signing off. Same text, one source.</li>
+<li>Prerequisites render as a small upstream graph on the skill page, not a full org-wide graph view. Nobody uses the big graph twice.</li>
+<li>Admin editor is a spreadsheet-style grid with a live diff and a publish step. Editing a taxonomy row by row through modals is unusable at scale.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="c4">
+<div class="shead"><span class="id">C4</span><h2>Job profiles and grades</h2></div>
+<p class="lede">This is what turns "moving from one level to another" from a conversation into a diff.</p>
+<figure>
+<svg viewBox="0 0 700 232" role="img" aria-label="A grade ladder where each grade lists its required skill levels">
+<g><rect class="bt" x="20" y="16" width="180" height="54" rx="6"/><text class="dt" x="110" y="38" text-anchor="middle">L4 Senior</text><text class="ds" x="110" y="55" text-anchor="middle">target grade</text></g>
+<g><rect class="b" x="230" y="16" width="450" height="54" rx="6"/><text class="dt" x="248" y="38">Kubernetes L4, Postgres L4, System design L3, Mentoring L3</text><text class="ds" x="248" y="55">2 gaps remaining — 1 in review</text></g>
+<g><rect class="bn" x="20" y="84" width="180" height="54" rx="6"/><text class="dt" x="110" y="106" text-anchor="middle">L3 Engineer</text><text class="ds" x="110" y="123" text-anchor="middle">current grade</text></g>
+<g><rect class="b" x="230" y="84" width="450" height="54" rx="6"/><text class="dt" x="248" y="106">Kubernetes L3, Postgres L3, System design L2</text><text class="ds" x="248" y="123">all verified — grade satisfied</text></g>
+<g><rect class="b" x="20" y="152" width="180" height="54" rx="6"/><text class="dt" x="110" y="174" text-anchor="middle">L2 Associate</text><text class="ds" x="110" y="191" text-anchor="middle">held since 2024</text></g>
+<g><rect class="b" x="230" y="152" width="450" height="54" rx="6"/><text class="dt" x="248" y="174">Kubernetes L2, Postgres L2</text><text class="ds" x="248" y="191">all verified</text></g>
+<line class="ar" x1="110" y1="152" x2="110" y2="140" marker-end="url(#arw)"/>
+<line class="ar" x1="110" y1="84" x2="110" y2="72" marker-end="url(#arw)"/>
+</svg>
+<figcaption>Readiness is computed, not asserted: count verified assertions meeting or exceeding each requirement.</figcaption>
+</figure>
+<pre><code>track(id, tenant_id, name)                    -- Backend, Design, Sales
+job_profile(id, tenant_id, track_id, grade SMALLINT, title, status)
+profile_requirement(job_profile_id, skill_id, min_level,
+      criticality)                            -- core | supporting | optional
+readiness_snapshot(membership_id, job_profile_id, met, total,
+      blocking_skill_ids, computed_at)</code></pre>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>Readiness recomputes on any verified assertion write for that person, and nightly for everyone as a safety net. Cached in <code>readiness_snapshot</code> because managers open team views that would otherwise fan out into hundreds of queries.</li>
+<li>Core requirements gate promotion; supporting ones show as advisory. Without that distinction every profile becomes a wall of blockers and people stop looking.</li>
+<li>Promotion itself is deliberately not automated in the MVP. The platform says "requirements met" and an admin records the grade change. Auto-promotion invites gaming and removes the human judgement organisations actually want to keep.</li>
+<li>Changing a profile's requirements is versioned. Anyone mid-roadmap stays on the version they started, with an opt-in to move.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>The learner's home screen is this diff, sorted by "closest to done". Not a course list.</li>
+<li>Any grade in the track is explorable, including sideways ones, so someone can see the cost of switching from Backend L3 to Platform L3.</li>
+<li>Each gap links straight to generating or opening a roadmap for that skill.</li>
+<li>Manager view is a heatmap of subtree members against core requirements, with a filter for "one gap from promotion" — the single most requested report in every system of this kind.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="c5">
+<div class="shead"><span class="id">C5</span><h2>Resource catalog</h2></div>
+<p class="lede">Pointers to learning that lives elsewhere. The platform never hosts content in the MVP.</p>
+<figure>
+<svg viewBox="0 0 700 200" role="img" aria-label="External sources normalise into resource records mapped to skill levels">
+<g><rect class="b" x="14" y="14" width="150" height="40" rx="5"/><text class="dt" x="89" y="39" text-anchor="middle">Courses, videos</text></g>
+<g><rect class="b" x="14" y="64" width="150" height="40" rx="5"/><text class="dt" x="89" y="89" text-anchor="middle">Books, docs</text></g>
+<g><rect class="b" x="14" y="114" width="150" height="40" rx="5"/><text class="dt" x="89" y="139" text-anchor="middle">Mentors, projects</text></g>
+<path class="ar" d="M164 34 L184 34 L184 84 L206 84" marker-end="url(#arw)"/>
+<path class="ar" d="M164 84 L206 84" marker-end="url(#arw)"/>
+<path class="ar" d="M164 134 L184 134 L184 84 L206 84" marker-end="url(#arw)"/>
+<g><rect class="bn" x="210" y="57" width="150" height="54" rx="6"/><text class="dt" x="285" y="79" text-anchor="middle">Submit and review</text><text class="ds" x="285" y="96" text-anchor="middle">anyone proposes</text></g>
+<line class="ar" x1="360" y1="84" x2="386" y2="84" marker-end="url(#arw)"/>
+<g><rect class="b" x="390" y="57" width="140" height="54" rx="6"/><text class="dt" x="460" y="79" text-anchor="middle">Resource</text><text class="ds" x="460" y="96" text-anchor="middle">url, cost, duration</text></g>
+<line class="ar" x1="530" y1="84" x2="556" y2="84" marker-end="url(#arw)"/>
+<g><rect class="bb" x="560" y="57" width="126" height="54" rx="6"/><text class="dt" x="623" y="79" text-anchor="middle">Skill map</text><text class="ds" x="623" y="96" text-anchor="middle">skill + level</text></g>
+<text class="dm" x="14" y="182">a resource claims to cover skill X at level N — learners rate whether it did</text>
+</svg>
+<figcaption>Because anyone can propose a resource, the useful signal is not the catalog but the ratings from people who later passed that level.</figcaption>
+</figure>
+<pre><code>resource(id, tenant_id NULL, kind, title, url, provider,
+      cost_cents, currency, duration_minutes, language,
+      submitted_by, status, visibility)        -- global | tenant | private
+resource_skill(resource_id, skill_id, level, confidence)
+resource_rating(resource_id, membership_id, helpful BOOL,
+      passed_level_after BOOL, comment, created_at)
+resource_progress(membership_id, resource_id, state, updated_at)</code></pre>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>URL normalisation and dedupe on insert, so the same Coursera link submitted by forty people is one record with forty ratings.</li>
+<li>Fetch title and duration from Open Graph metadata on submission. Manual entry is a fallback, not the path.</li>
+<li>Ranking for a skill level: helpful ratio weighted by how many raters later passed that level, then recency, then cost ascending. Free resources that work should outrank expensive ones that also work.</li>
+<li>Progress states are <code>saved</code>, <code>in_progress</code>, <code>done</code>, self-reported and untrusted. They drive XP and nothing else.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>Resource lists always appear inside a skill level context, never as a standalone catalog to browse. The question is always "how do I get to L3", never "what courses exist".</li>
+<li>An explicit "I learned this elsewhere" path that skips straight to claiming. Forcing people through the catalog to log a skill they already have is the fastest way to lose them.</li>
+<li>Ratings ask two things after a level is verified: was it helpful, and did it prepare you. Two taps, asked at the moment the answer is known.</li>
+<li>Cost and duration are shown on every row. People are choosing with their own evenings and often their own money.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="c6">
+<div class="shead"><span class="id">C6</span><h2>Roadmap engine</h2></div>
+<p class="lede">Given a verified profile and a target, produce an ordered plan that respects prerequisites.</p>
+<figure>
+<svg viewBox="0 0 700 214" role="img" aria-label="Verified profile and target profile produce a gap set, sorted by prerequisites into ordered milestones">
+<g><rect class="bt" x="14" y="16" width="152" height="54" rx="6"/><text class="dt" x="90" y="38" text-anchor="middle">Verified profile</text><text class="ds" x="90" y="55" text-anchor="middle">what is proven</text></g>
+<g><rect class="bn" x="182" y="16" width="152" height="54" rx="6"/><text class="dt" x="258" y="38" text-anchor="middle">Target profile</text><text class="ds" x="258" y="55" text-anchor="middle">next grade or role</text></g>
+<line class="ar" x1="166" y1="43" x2="178" y2="43"/>
+<line class="ar" x1="334" y1="43" x2="366" y2="43" marker-end="url(#arw)"/>
+<g><rect class="b" x="370" y="16" width="130" height="54" rx="6"/><text class="dt" x="435" y="38" text-anchor="middle">Gap set</text><text class="ds" x="435" y="55" text-anchor="middle">skill + delta</text></g>
+<line class="ar" x1="500" y1="43" x2="530" y2="43" marker-end="url(#arw)"/>
+<g><rect class="bb" x="534" y="16" width="152" height="54" rx="6"/><text class="dt" x="610" y="38" text-anchor="middle">Topological sort</text><text class="ds" x="610" y="55" text-anchor="middle">prereqs first</text></g>
+<path class="ar" d="M610 70 L610 96 L92 96 L92 122" marker-end="url(#arw)"/>
+<g><rect class="b" x="20" y="122" width="145" height="48" rx="6"/><text class="dt" x="92" y="143" text-anchor="middle">Postgres L3</text><text class="ds" x="92" y="159" text-anchor="middle">2 resources</text></g>
+<line class="ar" x1="165" y1="146" x2="185" y2="146" marker-end="url(#arw)"/>
+<g><rect class="b" x="190" y="122" width="145" height="48" rx="6"/><text class="dt" x="262" y="143" text-anchor="middle">Kubernetes L3</text><text class="ds" x="262" y="159" text-anchor="middle">assessment</text></g>
+<line class="ar" x1="335" y1="146" x2="355" y2="146" marker-end="url(#arw)"/>
+<g><rect class="b" x="360" y="122" width="145" height="48" rx="6"/><text class="dt" x="432" y="143" text-anchor="middle">System design L2</text><text class="ds" x="432" y="159" text-anchor="middle">artifact</text></g>
+<line class="ar" x1="505" y1="146" x2="525" y2="146" marker-end="url(#arw)"/>
+<g><rect class="bt" x="530" y="122" width="150" height="48" rx="6"/><text class="dt" x="605" y="143" text-anchor="middle">Grade satisfied</text><text class="ds" x="605" y="159" text-anchor="middle">ready for review</text></g>
+</svg>
+<figcaption>Milestones are skill levels, not courses. Each one carries its accepted evidence types and suggested resources.</figcaption>
+</figure>
+<pre><code>roadmap(id, tenant_id, membership_id, target_job_profile_id,
+      kind, status, generated_from_version, created_at, due_at)
+      -- kind: generated | template | manual
+milestone(id, roadmap_id, skill_id, target_level, sort,
+      state, due_at, completed_at)
+      -- state: locked | open | evidence_submitted | verified
+roadmap_template(id, tenant_id, name, target_job_profile_id, spec JSONB)</code></pre>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>Generation: diff verified assertions against requirements, expand each gap into intermediate levels if the person is two or more levels short, pull in unmet prerequisites transitively, topologically sort, then order ties by shortest estimated effort.</li>
+<li>Milestones are locked until their prerequisites are verified. This is the one place the platform is prescriptive, and it is what makes the roadmap feel like a path rather than a list.</li>
+<li>Regeneration is additive: it never deletes a milestone that has evidence attached. It appends and re-sorts.</li>
+<li>Due dates are optional and default to absent. Imposed deadlines on self-directed learning produce abandonment, and the data on who is behind is worth less than the goodwill it costs.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>A vertical stepper, current milestone expanded, everything else collapsed to one line. The whole roadmap on one screen at a glance.</li>
+<li>Locked milestones show why they are locked and link to the blocker. Never a grey row with no explanation.</li>
+<li>Each open milestone shows the rubric for the target level, the accepted evidence, and a submit action. The person should never have to navigate elsewhere to act.</li>
+<li>Progress is expressed in milestones verified out of total, plus XP. Percentage complete on a self-paced plan is a lie the interface should not tell.</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="c7">
+<div class="shead"><span class="id">C7</span><h2>Assessment engine</h2></div>
+<p class="lede">When content lives anywhere, assessment integrity is the only thing that makes a claim worth anything.</p>
+<figure>
+<svg viewBox="0 0 700 172" role="img" aria-label="Item bank produces an attempt which is scored and becomes a claim">
+<g><rect class="b" x="15" y="20" width="150" height="54" rx="6"/><text class="dt" x="90" y="42" text-anchor="middle">Item bank</text><text class="ds" x="90" y="59" text-anchor="middle">per skill level</text></g>
+<line class="ar" x1="165" y1="47" x2="185" y2="47" marker-end="url(#arw)"/>
+<g><rect class="bn" x="190" y="20" width="150" height="54" rx="6"/><text class="dt" x="265" y="42" text-anchor="middle">Attempt</text><text class="ds" x="265" y="59" text-anchor="middle">randomised, timed</text></g>
+<line class="ar" x1="340" y1="47" x2="360" y2="47" marker-end="url(#arw)"/>
+<g><rect class="b" x="365" y="20" width="150" height="54" rx="6"/><text class="dt" x="440" y="42" text-anchor="middle">Score</text><text class="ds" x="440" y="59" text-anchor="middle">threshold per level</text></g>
+<line class="ar" x1="515" y1="47" x2="535" y2="47" marker-end="url(#arw)"/>
+<g><rect class="bb" x="540" y="20" width="145" height="54" rx="6"/><text class="dt" x="612" y="42" text-anchor="middle">Claim</text><text class="ds" x="612" y="59" text-anchor="middle">not yet verified</text></g>
+<text class="dm" x="15" y="112">passing an assessment never grants a level — it produces evidence for C8</text>
+<text class="dm" x="15" y="134">cooldown after failure · items rotate per tenant · artifacts replace quizzes above L2</text>
+</svg>
+<figcaption>The arrow stops at claim on purpose. Automated scoring is evidence, never a decision.</figcaption>
+</figure>
+<pre><code>item_bank(id, tenant_id NULL, skill_id, level, name, status)
+item(id, bank_id, kind, stem, options JSONB, answer JSONB,
+      difficulty, discrimination, status, retired_at)
+attempt(id, tenant_id, membership_id, bank_id, skill_id, level,
+      item_ids UUID[], started_at, submitted_at, score,
+      passed, ip_hash, seed)
+attempt_response(attempt_id, item_id, response JSONB, correct)
+attempt_policy(bank_id, item_count, pass_pct, time_limit_s,
+      cooldown_hours, max_attempts_per_quarter)</code></pre>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>Items are drawn per attempt with a stored seed, stratified across difficulty so two attempts are comparable. The seed makes an attempt reproducible for dispute review.</li>
+<li>Answers never leave the server. The client receives stems and options only, and scoring happens on submit.</li>
+<li>Cooldown and quarterly attempt caps are enforced server-side against the policy row. A failed attempt is recorded, not discarded.</li>
+<li>Item leakage is the main threat once tenants are separate companies. Mitigations in the MVP: per-tenant item subsets from a shared bank, per-item exposure counters, automatic retirement above a threshold, and answer-pattern similarity flags across attempts.</li>
+<li>Above L2 the accepted evidence is an artifact or observation, so the engine handles upload, reviewer assignment and rubric scoring rather than auto-grading.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>One question per screen, visible progress and remaining time, no back navigation after answering. Autosave every response so a dropped connection does not void an attempt.</li>
+<li>Result screen shows pass or fail, the threshold, per-domain breakdown, and the next action. It never shows which specific items were wrong, because that is how a bank drains.</li>
+<li>Cooldown is stated as a date and time, not "try again later".</li>
+<li>Artifact submission accepts files plus a link and a short written rationale against the rubric. The rationale is what a reviewer actually reads first.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="c8">
+<div class="shead"><span class="id">C8</span><h2>Evidence and verification</h2></div>
+<p class="lede">The core of the product. Everything else exists to feed this state machine and consume its output.</p>
+<figure>
+<svg viewBox="0 0 700 196" role="img" aria-label="Verification state machine from draft through submitted, in review, verified and expired, with a return path">
+<g><rect class="b" x="20" y="34" width="124" height="54" rx="6"/><text class="dt" x="82" y="56" text-anchor="middle">Draft</text><text class="ds" x="82" y="73" text-anchor="middle">gathering</text></g>
+<line class="ar" x1="144" y1="61" x2="152" y2="61" marker-end="url(#arw)"/>
+<g><rect class="bn" x="156" y="34" width="124" height="54" rx="6"/><text class="dt" x="218" y="56" text-anchor="middle">Submitted</text><text class="ds" x="218" y="73" text-anchor="middle">routing</text></g>
+<line class="ar" x1="280" y1="61" x2="288" y2="61" marker-end="url(#arw)"/>
+<g><rect class="bb" x="292" y="34" width="124" height="54" rx="6"/><text class="dt" x="354" y="56" text-anchor="middle">In review</text><text class="ds" x="354" y="73" text-anchor="middle">SLA running</text></g>
+<line class="ar" x1="416" y1="61" x2="424" y2="61" marker-end="url(#arw)"/>
+<g><rect class="bt" x="428" y="34" width="124" height="54" rx="6"/><text class="dt" x="490" y="56" text-anchor="middle">Verified</text><text class="ds" x="490" y="73" text-anchor="middle">signed, dated</text></g>
+<line class="ar" x1="552" y1="61" x2="560" y2="61" marker-end="url(#arw)"/>
+<g><rect class="bw" x="564" y="34" width="124" height="54" rx="6"/><text class="dt" x="626" y="56" text-anchor="middle">Expired</text><text class="ds" x="626" y="73" text-anchor="middle">recert due</text></g>
+<path class="ar" d="M354 88 L354 128 L82 128 L82 88" marker-end="url(#arw)"/>
+<text class="ds" x="218" y="146" text-anchor="middle">returned — more evidence needed</text>
+<text class="dm" x="20" y="180">revoked is reachable from verified and is always logged with a reason</text>
+</svg>
+<figcaption>Verified is the only state that other components read. Everything upstream is inventory.</figcaption>
+</figure>
+<pre><code>skill_claim(id, tenant_id, membership_id, skill_id, target_level,
+      state, rubric_version, submitted_at, decided_at)
+
+evidence(id, tenant_id, claim_id, kind, attempt_id NULL,
+      artifact_url NULL, external_credential_id NULL,
+      note, added_by, created_at)
+      -- kind: assessment | artifact | observation | endorsement | external_cert
+
+verification(id, tenant_id, claim_id, verifier_membership_id,
+      decision, rubric_scores JSONB, comment,
+      authority_id, policy_version, decided_at)
+      -- decision: approve | return | reject
+
+skill_assertion(id, tenant_id, membership_id, skill_id, level,
+      claim_id, verified_at, valid_until, revoked_at,
+      revoked_reason, credential_id)</code></pre>
+<h3>Routing and the sign-off gate</h3>
+<p>On submit, the router finds every principal whose <code>verifier_authority</code> covers this skill, this level and this learner's org unit, minus anyone excluded by conflict rules. If <code>requires_quorum</code> is set for the level, the claim needs that many independent approvals before an assertion is written.</p>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>Every decision stores the authority row used and the policy version evaluated. A year later you can answer "under what rule was this allowed" without guessing.</li>
+<li>Conflict rules in the MVP: not self, not a reciprocal pair inside the last 90 days, and optionally not the learner's direct manager for levels above a configured threshold.</li>
+<li>SLA timer per level. On breach, escalate up the authority chain; on second breach, notify the org admin. Unreviewed claims are the failure mode that kills these systems, so the escalation is not optional.</li>
+<li>Writing an assertion is one transaction that also computes <code>valid_until</code> from the level's <code>validity_months</code>, enqueues credential issuance, enqueues reward postings, and recomputes readiness.</li>
+<li>Revocation writes <code>revoked_at</code>, publishes to the credential status list, and emits a reversal transaction to the rewards ledger. Nothing is deleted.</li>
+<li>The audit log is append-only and outside module reach: claim id, actor, action, before and after state, request id, timestamp.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>Learner side: one submission screen per milestone, showing accepted evidence kinds for that level, what has been attached, and what is still missing before submit is enabled.</li>
+<li>Verifier queue is the single most important screen in the product. Sorted by SLA risk, filterable by skill, with the rubric and all evidence on one page and approve, return or reject as three primary actions.</li>
+<li>Approval requires a rubric score per indicator plus a comment. A bare approve button produces worthless records and inflated levels.</li>
+<li>Bulk approve exists only for checklist-style skills where the tenant has marked it allowed, and it still records per-person rubric defaults.</li>
+<li>Verifier workload is visible to the verifier: pending count, median turnaround, and how many they have signed this quarter. Reviewing is unpaid work and needs to feel acknowledged.</li>
+<li>Mobile matters here more than anywhere else. Tech leads approve from a phone between meetings.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="c9">
+<div class="shead"><span class="id">C9</span><h2>Credentials</h2></div>
+<p class="lede">Open Badges 3.0, signed per tenant, verifiable by anyone without an account.</p>
+<figure>
+<svg viewBox="0 0 700 202" role="img" aria-label="Assertion is issued, signed with a tenant key, published, and verified against a status list">
+<g><rect class="bt" x="15" y="20" width="150" height="54" rx="6"/><text class="dt" x="90" y="42" text-anchor="middle">Assertion</text><text class="ds" x="90" y="59" text-anchor="middle">from C8</text></g>
+<line class="ar" x1="165" y1="47" x2="185" y2="47" marker-end="url(#arw)"/>
+<g><rect class="bb" x="190" y="20" width="150" height="54" rx="6"/><text class="dt" x="265" y="42" text-anchor="middle">Sign</text><text class="ds" x="265" y="59" text-anchor="middle">tenant Ed25519 key</text></g>
+<line class="ar" x1="340" y1="47" x2="360" y2="47" marker-end="url(#arw)"/>
+<g><rect class="b" x="365" y="20" width="150" height="54" rx="6"/><text class="dt" x="440" y="42" text-anchor="middle">Publish</text><text class="ds" x="440" y="59" text-anchor="middle">page, QR, JSON-LD</text></g>
+<line class="ar" x1="515" y1="47" x2="535" y2="47" marker-end="url(#arw)"/>
+<g><rect class="b" x="540" y="20" width="145" height="54" rx="6"/><text class="dt" x="612" y="42" text-anchor="middle">Verify</text><text class="ds" x="612" y="59" text-anchor="middle">no login needed</text></g>
+<line class="ar" x1="612" y1="130" x2="612" y2="78" marker-end="url(#arw)"/>
+<g><rect class="bw" x="540" y="130" width="145" height="52" rx="6"/><text class="dt" x="612" y="151" text-anchor="middle">Status list</text><text class="ds" x="612" y="168" text-anchor="middle">revoked, expired</text></g>
+<text class="dm" x="15" y="152">payload carries: issuer, criteria, evidence, level rubric, expiry, subject</text>
+<text class="dm" x="15" y="174">the credential outlives the membership — the person keeps it</text>
+</svg>
+<figcaption>A verifier page that works for someone outside the organisation is what makes the credential worth earning.</figcaption>
+</figure>
+<pre><code>issuer_key(tenant_id, did, public_jwk, kms_key_ref,
+      created_at, rotated_at)
+credential(id, tenant_id, assertion_id, subject_person_id,
+      payload JSONB, proof JSONB, public_slug UNIQUE,
+      issued_at, expires_at, status)
+      -- status: active | expired | revoked | superseded
+status_list(tenant_id, list_index, bitstring, published_at)</code></pre>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>Issuer identity as <code>did:web</code> served from the tenant's own path, so the key is discoverable without a registry. Private keys live in a KMS and are never in the application database.</li>
+<li>Payload includes the skill, the level, the rubric version it was judged against, the verifier's role rather than their name, the evidence kinds used, and the expiry. Alignment fields point at the taxonomy so an external reader can resolve what L3 means.</li>
+<li>Revocation flips a bit in a published status list rather than rewriting credentials. Verifiers check signature first, status list second.</li>
+<li>Recertification supersedes rather than replaces: the old credential stays verifiable and marked superseded, with a pointer to its successor. Career history should be readable.</li>
+<li>Key rotation keeps old public keys resolvable indefinitely. Rotating a key must never invalidate history.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>Public verify page is server-rendered, no auth, fast, and readable on a phone: who, what skill at what level, when, by which organisation, what evidence type, valid until, and the signature check result.</li>
+<li>It shows the rubric for that level in plain language. A hiring manager who does not know your framework needs to understand what was certified.</li>
+<li>Share actions produce a link and a LinkedIn-ready payload. The badge image is secondary to the link.</li>
+<li>The learner's wallet lists all credentials across every tenant they have belonged to, with expiry warnings ahead of time.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="c10">
+<div class="shead"><span class="id">C10</span><h2>Rewards ledger</h2></div>
+<p class="lede">Two currencies. XP is free and mint-only. Coins are conserved and come out of a funded budget.</p>
+<figure>
+<svg viewBox="0 0 700 236" role="img" aria-label="Coin accounts from budget pool to wallet to escrow to sink, with example balanced postings">
+<g><rect class="b" x="15" y="16" width="150" height="54" rx="6"/><text class="dt" x="90" y="38" text-anchor="middle">Budget pool</text><text class="ds" x="90" y="55" text-anchor="middle">funded by tenant</text></g>
+<line class="ar" x1="165" y1="43" x2="185" y2="43" marker-end="url(#arw)"/>
+<g><rect class="bt" x="190" y="16" width="150" height="54" rx="6"/><text class="dt" x="265" y="38" text-anchor="middle">Wallet</text><text class="ds" x="265" y="55" text-anchor="middle">per membership</text></g>
+<line class="ar" x1="340" y1="43" x2="360" y2="43" marker-end="url(#arw)"/>
+<g><rect class="bb" x="365" y="16" width="150" height="54" rx="6"/><text class="dt" x="440" y="38" text-anchor="middle">Escrow</text><text class="ds" x="440" y="55" text-anchor="middle">reserved</text></g>
+<line class="ar" x1="515" y1="43" x2="535" y2="43" marker-end="url(#arw)"/>
+<g><rect class="b" x="540" y="16" width="145" height="54" rx="6"/><text class="dt" x="612" y="38" text-anchor="middle">Sink</text><text class="ds" x="612" y="55" text-anchor="middle">spent or expired</text></g>
+<rect class="b" x="15" y="100" width="670" height="118" rx="4"/>
+<text class="dm" x="34" y="128">mint      budget_pool  −300      wallet   +300     key: assertion:9f2:rule:7</text>
+<text class="dm" x="34" y="152">reserve   wallet       −300      escrow   +300     key: redemption:41a</text>
+<text class="dm" x="34" y="176">settle    escrow       −300      sink     +300     key: redemption:41a:settle</text>
+<text class="dm" x="34" y="200">reverse   wallet       −300      sink     +300     reverses: mint txn above</text>
+</svg>
+<figcaption>Every transaction sums to zero. Corrections are new balanced transactions, never edits.</figcaption>
+</figure>
+<pre><code>xp_event(id, tenant_id, membership_id, source_event_id,
+      rule_id, amount, created_at)              -- single entry, mint only
+
+reward_account(id, tenant_id, kind, owner_id)   -- budget_pool|wallet|escrow|sink
+reward_txn(id, tenant_id, kind, source_event_id,
+      idempotency_key UNIQUE, actor_id, memo,
+      reverses_txn_id, created_at)
+reward_posting(id, tenant_id, txn_id, account_id, amount_signed)
+      -- CHECK: sum(amount_signed) per txn_id = 0
+
+earning_rule(id, tenant_id, trigger, condition JSONB, xp, coins,
+      per_period_cap, cooldown_hours, version, active)
+reward_item(id, tenant_id, kind, name, coin_price, stock, active)
+redemption(id, tenant_id, membership_id, reward_item_id,
+      state, txn_reserve_id, txn_settle_id, fulfilled_ref)</code></pre>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>No balance column anywhere. Balance is a sum over postings with a nightly materialised snapshot for list views.</li>
+<li><code>idempotency_key</code> derives from the source event and rule id, so a replayed webhook or a re-run rule collides instead of paying twice.</li>
+<li>Coins mint only from verified assertions, level satisfaction, verification work performed, and mentoring. XP can respond to softer signals like finishing a resource.</li>
+<li>Minting fails loudly when the budget pool is empty rather than going negative. The admin sees a blocked-mint queue.</li>
+<li>Redemption is reserve, fulfil, settle, with rollback on vendor failure. Skipping escrow either eats coins or gives them away free depending on the failure direction.</li>
+<li>Anomaly job flags reciprocal verifier pairs, sub-minute approvals, and any verifier accounting for an outsized share of a department's coins.</li>
+<li>Postings record the <code>earning_rule</code> version. Someone will ask why the same skill paid double last quarter.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>Wallet screen shows coin balance, XP total, and a plain transaction history. Every line names the assertion or event that caused it, linked.</li>
+<li>The catalog leads with non-cash items where possible: conference budget, a stretch assignment, assessor status, an extra learning day. These cost less and motivate senior people more.</li>
+<li>No global leaderboard. Cohort standing as a percentile band, opt-in, plus personal-best framing. Ranked lists demoralise everyone below the top.</li>
+<li>XP naming is a tenant setting, because some organisations find game vocabulary infantilising for senior staff.</li>
+<li>Admin sees accrued liability, burn against budget, and a per-person per-financial-year redeemed total for payroll, since redeemable rewards are generally taxable perquisites.</li>
+</ul>
+</div>
+</div>
+</section>
+<section id="c11">
+<div class="shead"><span class="id">C11</span><h2>Events and analytics</h2></div>
+<p class="lede">One append-only stream feeds rules, reports and the audit trail. Reports never touch the transactional tables.</p>
+<figure>
+<svg viewBox="0 0 700 210" role="img" aria-label="Modules write to an event store which feeds reports; transactional Postgres is not used for analytics">
+<g><rect class="b" x="15" y="20" width="150" height="54" rx="6"/><text class="dt" x="90" y="42" text-anchor="middle">Modules</text><text class="ds" x="90" y="59" text-anchor="middle">emit on commit</text></g>
+<line class="ar" x1="165" y1="47" x2="190" y2="47" marker-end="url(#arw)"/>
+<g><rect class="bn" x="195" y="20" width="150" height="54" rx="6"/><text class="dt" x="270" y="42" text-anchor="middle">Event store</text><text class="ds" x="270" y="59" text-anchor="middle">append only</text></g>
+<line class="ar" x1="345" y1="47" x2="370" y2="47" marker-end="url(#arw)"/>
+<g><rect class="b" x="375" y="20" width="150" height="54" rx="6"/><text class="dt" x="450" y="42" text-anchor="middle">Read models</text><text class="ds" x="450" y="59" text-anchor="middle">rebuilt nightly</text></g>
+<line class="ar" x1="525" y1="47" x2="550" y2="47" marker-end="url(#arw)"/>
+<g><rect class="bt" x="555" y="20" width="130" height="54" rx="6"/><text class="dt" x="620" y="42" text-anchor="middle">Reports</text><text class="ds" x="620" y="59" text-anchor="middle">scoped by org</text></g>
+<path class="ar" d="M90 74 L90 130" marker-end="url(#arw)"/>
+<g><rect class="b" x="15" y="130" width="150" height="54" rx="6"/><text class="dt" x="90" y="152" text-anchor="middle">Postgres</text><text class="ds" x="90" y="169" text-anchor="middle">transactional only</text></g>
+<text class="dm" x="195" y="150">a dashboard query must never run against the primary —</text>
+<text class="dm" x="195" y="172">one large tenant report will stall everyone else's writes</text>
+</svg>
+<figcaption>In the MVP the event store is a Postgres table with a separate read replica for report queries. A warehouse comes later.</figcaption>
+</figure>
+<pre><code>event(id BIGSERIAL, tenant_id, membership_id NULL, actor_id NULL,
+      verb, object_type, object_id, context JSONB,
+      request_id, occurred_at)
+      -- verb: resource.completed | attempt.passed | claim.submitted
+      --       claim.verified | claim.returned | assertion.expired
+      --       credential.issued | credential.revoked | coins.minted
+
+audit_log(id BIGSERIAL, tenant_id, actor_id, action,
+      target_type, target_id, before JSONB, after JSONB,
+      request_id, ip_hash, occurred_at)   -- no UPDATE, no DELETE grants</code></pre>
+<h3>Reports that ship in the MVP</h3>
+<table>
+<thead><tr><th style="width:32%">Report</th><th>Answers</th></tr></thead>
+<tbody>
+<tr><td>Skill coverage</td><td>How many people hold each skill at each level, per org unit</td></tr>
+<tr><td>Gap against profiles</td><td>Which core requirements are unmet across a team, ranked by count</td></tr>
+<tr><td>One gap from promotion</td><td>Who is closest to their next grade. The most-opened report in the product.</td></tr>
+<tr><td>Verifier throughput</td><td>Queue depth, median turnaround, SLA breaches, per verifier</td></tr>
+<tr><td>Expiring credentials</td><td>What lapses in the next 90 days and who needs recertification</td></tr>
+<tr><td>Reward burn</td><td>Coins minted, redeemed, outstanding liability, against budget</td></tr>
+<tr><td>Verification integrity</td><td>Approval rates by verifier, reciprocal pairs, unusually fast decisions</td></tr>
+</tbody>
+</table>
+<p>Every report is filtered by the requester's org scope through the same <code>can()</code> path as the rest of the application. A manager exporting a CSV must not be able to reach outside their subtree.</p>
+</section>
+
+<section id="c12">
+<div class="shead"><span class="id">C12</span><h2>Automation rules</h2></div>
+<p class="lede">A small trigger, condition, action engine. Its job is to stop admins from doing repetitive work by hand.</p>
+<figure>
+<svg viewBox="0 0 700 220" role="img" aria-label="An event matches a rule which fans out to enrolment, notification and reward actions">
+<g><rect class="bn" x="15" y="80" width="140" height="54" rx="6"/><text class="dt" x="85" y="102" text-anchor="middle">Event</text><text class="ds" x="85" y="119" text-anchor="middle">from C11</text></g>
+<line class="ar" x1="155" y1="107" x2="185" y2="107" marker-end="url(#arw)"/>
+<g><rect class="bb" x="190" y="80" width="155" height="54" rx="6"/><text class="dt" x="267" y="102" text-anchor="middle">Rule match</text><text class="ds" x="267" y="119" text-anchor="middle">condition on context</text></g>
+<path class="ar" d="M345 107 L370 107 L370 44 L392 44" marker-end="url(#arw)"/>
+<path class="ar" d="M345 107 L392 107" marker-end="url(#arw)"/>
+<path class="ar" d="M345 107 L370 107 L370 170 L392 170" marker-end="url(#arw)"/>
+<g><rect class="b" x="396" y="22" width="150" height="44" rx="5"/><text class="dt" x="471" y="49" text-anchor="middle">Assign roadmap</text></g>
+<g><rect class="b" x="396" y="85" width="150" height="44" rx="5"/><text class="dt" x="471" y="112" text-anchor="middle">Notify</text></g>
+<g><rect class="bt" x="396" y="148" width="150" height="44" rx="5"/><text class="dt" x="471" y="175" text-anchor="middle">Mint reward</text></g>
+<text class="dm" x="560" y="49">on join</text>
+<text class="dm" x="560" y="112">on SLA risk</text>
+<text class="dm" x="560" y="175">on verified</text>
+</svg>
+<figcaption>Actions are a fixed enumerated set in the MVP. An open scripting surface inside a multi-tenant system is a security problem, not a feature.</figcaption>
+</figure>
+<pre><code>rule(id, tenant_id, name, trigger_verb, condition JSONB,
+      actions JSONB, active, version, created_by)
+rule_run(id, rule_id, event_id, status, result JSONB, ran_at)
+notification(id, tenant_id, membership_id, kind, payload JSONB,
+      channel, sent_at, read_at)</code></pre>
+<div class="split">
+<div>
+<h4>Backend</h4>
+<ul>
+<li>Rules evaluate off the event stream in a worker, not inline in the request. A slow rule must never slow down a verification approval.</li>
+<li>Every run is recorded in <code>rule_run</code> with its result, keyed on the event id so a replay is idempotent.</li>
+<li>Scheduled triggers as well as event ones: expiry at 90, 30 and 7 days, stalled roadmap after 30 days of no activity, weekly verifier queue digest.</li>
+<li>Actions available in the MVP: assign a roadmap or template, send a notification, mint XP or coins, grant a temporary authority delegation, flag for admin review.</li>
+<li>Notification batching per person per day by default. A rule engine that emails on every event trains people to filter you out.</li>
+</ul>
+</div>
+<div>
+<h4>Frontend</h4>
+<ul>
+<li>Rules list with plain-language summaries: "when a person joins Backend, assign the L2 roadmap". Read the intent without opening it.</li>
+<li>Editor is a guided form with a dry-run that reports how many people the rule would have affected over the last 30 days. Nobody should activate a rule blind.</li>
+<li>Notification preferences per person, per kind, with email and in-app as the MVP channels.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="c13">
+<div class="shead"><span class="id">C13</span><h2>Admin console</h2></div>
+<p class="lede">Tenant self-service. If an organisation needs your team to configure their skill framework, the product does not scale.</p>
+<figure>
+<svg viewBox="0 0 700 200" role="img" aria-label="Admin console with four main areas: taxonomy, profiles, verifiers, rewards">
+<g><rect class="bn" x="270" y="16" width="160" height="46" rx="6"/><text class="dt" x="350" y="44" text-anchor="middle">Admin console</text></g>
+<path class="ar" d="M350 62 L350 82 L97 82 L97 100" marker-end="url(#arw)"/>
+<path class="ar" d="M350 62 L350 82 L266 82 L266 100" marker-end="url(#arw)"/>
+<path class="ar" d="M350 62 L350 82 L435 82 L435 100" marker-end="url(#arw)"/>
+<path class="ar" d="M350 62 L350 82 L604 82 L604 100" marker-end="url(#arw)"/>
+<g><rect class="b" x="20" y="100" width="155" height="54" rx="6"/><text class="dt" x="97" y="122" text-anchor="middle">Taxonomy</text><text class="ds" x="97" y="139" text-anchor="middle">skills and rubrics</text></g>
+<g><rect class="b" x="189" y="100" width="155" height="54" rx="6"/><text class="dt" x="266" y="122" text-anchor="middle">Job profiles</text><text class="ds" x="266" y="139" text-anchor="middle">grades, requirements</text></g>
+<g><rect class="bb" x="358" y="100" width="155" height="54" rx="6"/><text class="dt" x="435" y="122" text-anchor="middle">Authority</text><text class="ds" x="435" y="139" text-anchor="middle">who verifies what</text></g>
+<g><rect class="bt" x="527" y="100" width="155" height="54" rx="6"/><text class="dt" x="604" y="122" text-anchor="middle">Rewards</text><text class="ds" x="604" y="139" text-anchor="middle">rules and budget</text></g>
+<text class="dm" x="20" y="184">plus: members and org units, reports, branding, audit log viewer</text>
+</svg>
+<figcaption>Authority is the screen that determines whether the whole system is trusted. It gets the most design attention.</figcaption>
+</figure>
+<h4>Onboarding a new tenant</h4>
+<ul>
+<li>Create tenant, invite the first admin, done. Everything else is optional and has a working default.</li>
+<li>Start from a seeded taxonomy and job ladder for their industry, then edit. A blank framework is where every pilot dies.</li>
+<li>CSV import for members with org unit and grade, dry-run diff before commit.</li>
+<li>A guided checklist that unlocks features as prerequisites are met: taxonomy published, one job profile defined, at least one verifier granted authority. Rewards stay locked until a budget is funded.</li>
+</ul>
+</section>
+
+<section id="frontend">
+<div class="shead"><span class="id">F</span><h2>Frontend architecture</h2></div>
+<p class="lede">Three surfaces, one shell. Most people are two of the three roles at once.</p>
+<figure>
+<svg viewBox="0 0 700 250" role="img" aria-label="An app shell over three role surfaces: learner, verifier and admin screens">
+<g><rect class="bn" x="20" y="16" width="660" height="44" rx="6"/><text class="dt" x="350" y="43" text-anchor="middle">Shell: tenant theme, session, capability gate, notifications</text></g>
+<g><rect class="b" x="20" y="76" width="200" height="44" rx="5"/><text class="dt" x="120" y="103" text-anchor="middle">My roadmap</text></g>
+<g><rect class="b" x="20" y="132" width="200" height="44" rx="5"/><text class="dt" x="120" y="159" text-anchor="middle">Skill profile</text></g>
+<g><rect class="b" x="20" y="188" width="200" height="44" rx="5"/><text class="dt" x="120" y="215" text-anchor="middle">Submit evidence</text></g>
+<g><rect class="bb" x="250" y="76" width="200" height="44" rx="5"/><text class="dt" x="350" y="103" text-anchor="middle">Review queue</text></g>
+<g><rect class="bb" x="250" y="132" width="200" height="44" rx="5"/><text class="dt" x="350" y="159" text-anchor="middle">Evidence detail</text></g>
+<g><rect class="bb" x="250" y="188" width="200" height="44" rx="5"/><text class="dt" x="350" y="215" text-anchor="middle">Team readiness</text></g>
+<g><rect class="bt" x="480" y="76" width="200" height="44" rx="5"/><text class="dt" x="580" y="103" text-anchor="middle">Taxonomy editor</text></g>
+<g><rect class="bt" x="480" y="132" width="200" height="44" rx="5"/><text class="dt" x="580" y="159" text-anchor="middle">Authority grants</text></g>
+<g><rect class="bt" x="480" y="188" width="200" height="44" rx="5"/><text class="dt" x="580" y="215" text-anchor="middle">Reports</text></g>
+<text class="dl" x="120" y="70" text-anchor="middle">learner</text>
+<text class="dl" x="350" y="70" text-anchor="middle">verifier</text>
+<text class="dl" x="580" y="70" text-anchor="middle">admin</text>
+</svg>
+<figcaption>Not three applications. One navigation where sections appear according to capabilities.</figcaption>
+</figure>
+<h3>Stack and conventions</h3>
+<ul>
+<li>React with a file-based router, server-side rendering for the public credential verify page and nothing else. That page must be fast and crawlable; everything else is behind auth.</li>
+<li>Server state through a query cache keyed by tenant plus resource. Never cache across a tenant switch, and clear on switch.</li>
+<li>The session payload carries capabilities, tenant theme and the org scope. One request, cached, drives all conditional rendering.</li>
+<li>Design tokens from CSS custom properties so tenant accent and logo apply without a rebuild.</li>
+<li>Forms: optimistic on cheap toggles, pessimistic with an explicit confirmation on anything that writes to the ledger or the assertion table. Verification approvals are not optimistic.</li>
+<li>Empty states carry the next action. A learner with no roadmap sees "pick a target grade", not an illustration.</li>
+<li>Accessibility floor: keyboard reachable review queue, visible focus, no colour-only status. Verified, expired and revoked need shape or text as well as colour.</li>
+</ul>
+<h3>Screens worth prototyping first</h3>
+<ol>
+<li>Verifier review queue and evidence detail. If this is not fast and pleasant, nothing else matters.</li>
+<li>Learner roadmap with the gap diff. This is what makes people log in.</li>
+<li>Authority grant matrix. This is what makes an admin trust the platform.</li>
+<li>Public credential verify page. This is what makes the credential worth having.</li>
+</ol>
+</section>
+
+<section id="backend">
+<div class="shead"><span class="id">B</span><h2>Backend architecture</h2></div>
+<p class="lede">A modular monolith. The boundaries will be wrong for the first year, and moving a module is cheaper than moving a service.</p>
+<figure>
+<svg viewBox="0 0 700 140" role="img" aria-label="Request lifecycle: request, auth, tenant context, RLS session, module, audit">
+<g><rect class="b" x="10" y="30" width="105" height="54" rx="6"/><text class="dt" x="62" y="52" text-anchor="middle">Request</text><text class="ds" x="62" y="69" text-anchor="middle">request id</text></g>
+<line class="ar" x1="115" y1="57" x2="123" y2="57" marker-end="url(#arw)"/>
+<g><rect class="b" x="125" y="30" width="105" height="54" rx="6"/><text class="dt" x="177" y="52" text-anchor="middle">Session</text><text class="ds" x="177" y="69" text-anchor="middle">person</text></g>
+<line class="ar" x1="230" y1="57" x2="238" y2="57" marker-end="url(#arw)"/>
+<g><rect class="bn" x="240" y="30" width="105" height="54" rx="6"/><text class="dt" x="292" y="52" text-anchor="middle">Tenant ctx</text><text class="ds" x="292" y="69" text-anchor="middle">membership</text></g>
+<line class="ar" x1="345" y1="57" x2="353" y2="57" marker-end="url(#arw)"/>
+<g><rect class="bb" x="355" y="30" width="105" height="54" rx="6"/><text class="dt" x="407" y="52" text-anchor="middle">RLS set</text><text class="ds" x="407" y="69" text-anchor="middle">on connection</text></g>
+<line class="ar" x1="460" y1="57" x2="468" y2="57" marker-end="url(#arw)"/>
+<g><rect class="b" x="470" y="30" width="105" height="54" rx="6"/><text class="dt" x="522" y="52" text-anchor="middle">Module</text><text class="ds" x="522" y="69" text-anchor="middle">can() first</text></g>
+<line class="ar" x1="575" y1="57" x2="583" y2="57" marker-end="url(#arw)"/>
+<g><rect class="bt" x="585" y="30" width="105" height="54" rx="6"/><text class="dt" x="637" y="52" text-anchor="middle">Audit</text><text class="ds" x="637" y="69" text-anchor="middle">on write</text></g>
+<text class="dm" x="10" y="118">no query runs before the tenant context is set — this is enforced in the pool, not by convention</text>
+</svg>
+<figcaption>Tenant context is set on the database connection itself, so a forgotten filter fails closed rather than leaking.</figcaption>
+</figure>
+<h3>Stack</h3>
+<table>
+<thead><tr><th style="width:26%">Layer</th><th>Choice and reason</th></tr></thead>
+<tbody>
+<tr><td>Runtime</td><td>Node with TypeScript, or Go if the team prefers it. Either is fine; the schema and the permission model are the hard parts, not the language.</td></tr>
+<tr><td>Database</td><td>Postgres. Row-level security, LTREE for org paths, JSONB for rubrics and payloads, and one place to enforce the ledger invariant.</td></tr>
+<tr><td>Cache</td><td>Redis for resolved capabilities, session, rate limits, item exposure counters.</td></tr>
+<tr><td>Queue</td><td>One durable queue with per-tenant partitioning. Credential signing, rule evaluation, report generation, notification batching.</td></tr>
+<tr><td>Object storage</td><td>S3-compatible, per-tenant key prefix, signed URLs with short expiry, server-side encryption. Evidence artifacts are sensitive.</td></tr>
+<tr><td>Keys</td><td>KMS for tenant signing keys. Never in the application database.</td></tr>
+</tbody>
+</table>
+<h3>Module boundaries</h3>
+<p>Each module owns its tables and exposes a service interface. Cross-module reads go through that interface, never a raw join, because that is what keeps a later extraction possible.</p>
+<pre><code>identity     tenancy, person, membership, org_unit, idp
+authz        capability, role, grant, verifier_authority, can()
+skills       domain, skill, skill_level, edge, override
+profiles     track, job_profile, requirement, readiness
+catalog      resource, mapping, rating, progress
+roadmaps     roadmap, milestone, template, generation
+assessment   bank, item, attempt, policy
+verify       claim, evidence, verification, assertion, routing, SLA
+credentials  issuer_key, credential, status_list, verify endpoint
+rewards      xp, accounts, txn, posting, earning_rule, redemption
+events       event, audit_log, read models, reports
+automation   rule, rule_run, notification</code></pre>
+<h3>Non-obvious rules worth writing down</h3>
+<ul>
+<li>Only <code>verify</code> may write <code>skill_assertion</code>. Only <code>rewards</code> may write postings. Enforced by database grants per module role, not by code review.</li>
+<li>Every write endpoint takes an idempotency key. Mobile clients on poor connections retry, and a duplicate approval is a real incident.</li>
+<li>Background jobs carry the tenant context explicitly. A worker with no tenant set must fail rather than run unscoped.</li>
+<li>Migrations run online, additive first, with a backfill job and a separate cleanup release. A multi-tenant table lock at business hours affects every customer at once.</li>
+</ul>
+</section>
+<section id="security">
+<div class="shead"><span class="id">S</span><h2>Isolation and audit</h2></div>
+<p class="lede">Tenants are competing companies. A cross-tenant read is a breach, not a bug.</p>
+<figure>
+<svg viewBox="0 0 700 216" role="img" aria-label="Four isolation layers: application scoping, row-level security, storage prefixes, and audit">
+<g><rect class="bn" x="20" y="16" width="660" height="44" rx="6"/><text class="dt" x="40" y="43">1. Application — every query goes through a tenant-scoped repository</text></g>
+<g><rect class="bb" x="20" y="68" width="660" height="44" rx="6"/><text class="dt" x="40" y="95">2. Database — row-level security, forced, on every table with tenant_id</text></g>
+<g><rect class="b" x="20" y="120" width="660" height="44" rx="6"/><text class="dt" x="40" y="147">3. Storage — per-tenant key prefix, short-lived signed URLs only</text></g>
+<g><rect class="bt" x="20" y="172" width="660" height="44" rx="6"/><text class="dt" x="40" y="199">4. Audit — append-only log, nightly cross-tenant leak scan</text></g>
+</svg>
+<figcaption>Layer two is the one that saves you. A missed filter in layer one is inevitable at some point.</figcaption>
+</figure>
+<pre><code>ALTER TABLE skill_claim ENABLE ROW LEVEL SECURITY;
+ALTER TABLE skill_claim FORCE  ROW LEVEL SECURITY;   -- or the owner bypasses
+
+CREATE POLICY tenant_isolation ON skill_claim
+  USING (tenant_id = current_setting('app.tenant_id')::uuid);
+
+-- set once per checked-out connection, before any statement
+SET LOCAL app.tenant_id = $1;</code></pre>
+<ul>
+<li><code>FORCE ROW LEVEL SECURITY</code> is the line teams forget. Without it the application's own database user, being the table owner, ignores every policy.</li>
+<li>Shared schema with a <code>tenant_id</code> column is the right default at this stage. Keep a migration path to a dedicated database per tenant for the first enterprise buyer who demands it, and never write code that assumes a single connection string.</li>
+<li>Integration tests assert isolation directly: seed two tenants, run every list endpoint as tenant A, assert zero rows from tenant B. This suite grows with every endpoint and is not optional.</li>
+<li>A nightly job samples each tenant-scoped table for rows reachable under the wrong context and alerts on any hit.</li>
+<li>Platform staff impersonation exists, is time-boxed, requires a stated reason, notifies the tenant admin, and is logged separately from ordinary audit entries.</li>
+<li>Per-tenant export and delete built in phase one. Retrofitting deletion across twelve modules is far worse than designing it now, and India's DPDP Act plus GDPR both require it.</li>
+<li>Evidence artifacts can contain client-confidential work product. Retention policy per tenant, default two years past assertion expiry, with the artifact deletable while the assertion and its rubric scores survive.</li>
+</ul>
+</section>
+
+<section id="plan">
+<div class="shead"><span class="id">P</span><h2>Build order</h2></div>
+<p class="lede">The sequence matters because each stage makes the next one demonstrable to a pilot customer.</p>
+<table>
+<thead><tr><th style="width:16%">Stage</th><th style="width:42%">Ships</th><th>Provable claim at the end</th></tr></thead>
+<tbody>
+<tr><td>1. Spine</td><td>C1 tenancy and identity, C2 authorization, audit log, isolation test suite</td><td>Two organisations can coexist and nobody can see across.</td></tr>
+<tr><td>2. Map</td><td>C3 taxonomy with rubrics, C4 job profiles and readiness diff, admin editors</td><td>An organisation can describe its own skill framework and grades without your help.</td></tr>
+<tr><td>3. Loop</td><td>C8 verification end to end, C7 basic assessment, C5 resource pointers, C6 roadmaps</td><td>A person can claim a level, a tech lead can sign it off, and the gap closes. This is the product.</td></tr>
+<tr><td>4. Proof</td><td>C9 credentials with signing, public verify page, expiry and recertification</td><td>A credential holds up outside the organisation that issued it.</td></tr>
+<tr><td>5. Motion</td><td>C10 rewards ledger, C12 automation, C11 reports</td><td>The loop runs without an admin pushing it, and finance can see the cost.</td></tr>
+</tbody>
+</table>
+<div class="note">Stage 3 is the only stage that cannot be cut down. If time pressure arrives, ship a smaller taxonomy, fewer reports and no rewards, but never a weaker verification workflow. That is the whole differentiator.</div>
+<h3>What to validate with the first pilot</h3>
+<ul>
+<li>Do verifiers actually review? Median turnaround under a week is the health metric. If the queue rots, the rest of the system is decoration.</li>
+<li>Does the level rubric survive contact with real judgement, or do two verifiers read L3 differently? Disagreement rate on the same evidence is worth measuring deliberately.</li>
+<li>Do learners submit claims for skills they already have, or only for new learning? Both are fine, but they imply very different roadmap defaults.</li>
+<li>Does anyone use the resource catalog, or do people just learn elsewhere and come back to claim? If it is the latter, cut the catalog and invest in assessment.</li>
+</ul>
+</section>
+
+<section id="future">
+<div class="shead"><span class="id">X</span><h2>Future scope</h2></div>
+<p class="lede">Ordered by how much each one depends on the MVP being real first.</p>
+
+<h3>Near term — once the loop runs</h3>
+<ul>
+<li><strong>Standards ingestion.</strong> Import ESCO or SFIA as the global taxonomy so a new tenant starts from thousands of defined skills rather than a blank page. SFIA's seven responsibility levels map cleanly onto a level scale if you plan the mapping table early.</li>
+<li><strong>External credential auto-verification.</strong> When an uploaded certificate is an Open Badge, verify the signature and mark it machine-verified instead of waiting for a human. This is the highest-leverage reduction in verifier load available.</li>
+<li><strong>HRIS and SCIM sync.</strong> Job code, manager and org unit flowing in automatically removes the largest ongoing admin burden and makes automation rules reliable.</li>
+<li><strong>Verifier calibration.</strong> Route the same anonymised evidence to several verifiers periodically and report the spread. This is how you keep L4 meaning the same thing in two departments.</li>
+<li><strong>Appeals workflow.</strong> Necessary the moment verified levels influence pay. A rejected claim needs a documented route to a second opinion.</li>
+</ul>
+
+<h3>Medium term — new capability</h3>
+<ul>
+<li><strong>Skill inference from work.</strong> Read pull requests, tickets and documents to propose claims a person could make. Proposals only, never automatic assertions.</li>
+<li><strong>Internal gig and mentor marketplace.</strong> Match verified skills to short assignments and mentoring requests. This is the single strongest non-cash reward you can offer, and it also generates observation evidence as a side effect.</li>
+<li><strong>Practical assessment.</strong> Code sandbox, scenario simulation, structured observation forms on mobile for frontline and clinical work. Each unlocks a whole industry vertical.</li>
+<li><strong>Cross-tenant recognition.</strong> Let one organisation choose to accept another's verified assertions under a published trust policy. The reason to build the credential layer properly is so this becomes possible later.</li>
+<li><strong>Content standards adapters.</strong> SCORM and cmi5 import, LTI 1.3 launch, an xAPI endpoint. Only build these when a specific deal needs them, and prefer cmi5 over SCORM for anything new.</li>
+<li><strong>Warehouse and embedded analytics.</strong> Move reporting off the replica once tenants ask for their own dashboards and custom cuts.</li>
+</ul>
+
+<h3>Longer term — platform</h3>
+<ul>
+<li><strong>Agent-facing API over MCP.</strong> Expose read tools such as gap lookup, roadmap status and verifier queue so an assistant can answer "what am I missing for L4" in a chat client. Keep write access narrow: submitting a claim is plausible, approving one should stay in the interface where the rubric is visible.</li>
+<li><strong>Dedicated database tier.</strong> A silo option for regulated or white-label buyers, with the pooled tier remaining the default. Design the tenant router now so this is a configuration change rather than a rewrite.</li>
+<li><strong>Learner-owned wallet.</strong> A portable credential store the person controls independently of any employer, which is where the verifiable credentials model eventually leads.</li>
+<li><strong>Workforce planning.</strong> Model capability against a future org design and cost the training path. This is the report a CHRO will pay for, and it needs several years of verified data to be worth anything.</li>
+<li><strong>Marketplace for assessments.</strong> Third parties author and maintain item banks and observation rubrics for a domain, with revenue share. Only viable once enough tenants share a taxonomy.</li>
+</ul>
+
+<h3>Deliberately out of scope, probably forever</h3>
+<ul>
+<li>Authoring and hosting course content. It is a different company with different economics, and the whole premise here is that content is abundant and trust is scarce.</li>
+<li>Automatic promotion or pay decisions. The platform should produce defensible evidence and leave the decision with people. The moment an algorithm sets grades, every incentive in the system inverts.</li>
+<li>Global public leaderboards. Cheap to build, corrosive to the culture that makes verification honest.</li>
+</ul>
+</section>
+</main>
+</div>
+</body>
+</html>

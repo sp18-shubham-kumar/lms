@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_comment": "OPT-IN TEMPLATE. Copy to .claude/settings.json (shared, committed) or .claude/settings.local.json (personal, git-ignored) to reduce permission prompts for routine dev commands. Review before enabling.",
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(python manage.py:*)",
+      "Bash(./.venv/bin/python manage.py:*)",
+      "Bash(backend/.venv/bin/python manage.py:*)",
+      "Bash(./.venv/bin/pytest:*)",
+      "Bash(pytest:*)",
+      "Bash(./.venv/bin/ruff:*)",
+      "Bash(ruff:*)",
+      "Bash(./.venv/bin/black:*)",
+      "Bash(black:*)",
+      "Bash(./.venv/bin/mypy:*)",
+      "Bash(mypy:*)",
+      "Bash(pip install:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npx pm2:*)",
+      "Bash(docker compose:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "deny": []
+  }
+}
