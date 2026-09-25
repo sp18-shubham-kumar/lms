@@ -9,8 +9,9 @@ skills as separate tiers. Built in phases — see [`docs/specs/`](docs/specs/).
 - **Multitenancy**: shared schema, `tenant_id` on every domain row, app-level scoping
 - **Auth**: JWT (SimpleJWT)
 
-> Status: **scaffold**. Both apps run with tooling and tests wired; domain features are
-> not implemented yet. Start with [Phase 1](docs/specs/phase-1.md).
+> Status: **Phase 1 in progress**. The foundation is implemented — tenants, people,
+> memberships, roles/capabilities, JWT login, a capability-gated session, and a
+> tenant-isolated People directory. See [Phase 1](docs/specs/phase-1.md) for what's next.
 
 ## Prerequisites
 
@@ -26,7 +27,10 @@ make setup
 make db-up
 make migrate
 
-# 3. Run both apps (backend :8000, frontend :5173) via PM2
+# 3. Seed two demo tenants with roles, capabilities, people and memberships
+cd backend && .venv/bin/python manage.py seed_demo && cd ..
+
+# 4. Run both apps (backend :8000, frontend :5173) via PM2
 make dev
 #    ...or run them separately:
 #    make backend      # http://localhost:8000
@@ -39,6 +43,24 @@ Then open:
 - API docs (Swagger) — http://localhost:8000/api/schema/swagger-ui/
 
 Stop PM2 apps with `make stop`; stop Postgres with `make db-down`.
+
+### Demo login
+
+`seed_demo` creates two tenants (**Acme**, **Northwind**) and these accounts — password
+`demo-pass-123` for all:
+
+| Email | Tenant(s) | Role | What you'll see |
+| --- | --- | --- | --- |
+| `alice@acme.test` | Acme | Admin | Full capability-gated nav |
+| `bob@acme.test` | Acme | Learner | Reduced nav (Directory, Skills) |
+| `dana@shared.test` | Acme + Northwind | Learner / Manager | Signs in via the **tenant picker** |
+
+Sign in at http://localhost:5173, then open **Directory** for the paginated, tenant-scoped
+people list. `seed_demo` is idempotent — safe to re-run.
+
+> The app tracks the active tenant with an `X-Tenant-Id` header the SPA sends on every
+> request. To call the API directly: `POST /api/auth/login/` → use the returned `access`
+> token as `Authorization: Bearer <token>` plus `X-Tenant-Id: <tenant_id>` on later calls.
 
 > **Port 8000 in use?** Django defaults to `:8000`. If another service holds it, free that
 > port or change it in `ecosystem.config.js` (backend args) and point the frontend's
