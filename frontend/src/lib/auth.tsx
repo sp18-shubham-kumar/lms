@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 import { api, tenantStore, tokenStore } from './api'
 
@@ -18,6 +18,7 @@ export interface Session {
 
 interface AuthContextValue {
   isAuthenticated: boolean
+  bootstrapping: boolean
   session: Session | null
   login: (email: string, password: string) => Promise<Membership[]>
   loadSession: () => Promise<void>
@@ -28,9 +29,11 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const hasTokenAtMount = Boolean(tokenStore.getAccess() && tenantStore.get())
   const [session, setSession] = useState<Session | null>(
     tokenStore.getAccess() ? { capabilities: [] } : null,
   )
+  const [bootstrapping, setBootstrapping] = useState(hasTokenAtMount)
 
   const login = useCallback(async (email: string, password: string) => {
     const resp = await api.post('/auth/login/', { email, password })
@@ -54,6 +57,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null)
   }, [])
 
+  // Hydrate capabilities on app mount when a token + tenant are already persisted
+  // (hard refresh / new tab). Must run exactly once; failure clears the session so
+  // ProtectedRoute redirects to /login. We cannot call useNavigate here because
+  // AuthProvider sits outside the Router.
+  useEffect(() => {
+    if (!hasTokenAtMount) return
+    loadSession().catch(() => logout()).finally(() => setBootstrapping(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const hasCapability = useCallback(
     (capability: string) => session?.capabilities.includes(capability) ?? false,
     [session],
@@ -62,13 +75,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       isAuthenticated: session !== null,
+      bootstrapping,
       session,
       login,
       loadSession,
       logout,
       hasCapability,
     }),
-    [session, login, loadSession, logout, hasCapability],
+    [session, bootstrapping, login, loadSession, logout, hasCapability],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
