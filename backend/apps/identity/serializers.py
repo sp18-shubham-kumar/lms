@@ -31,3 +31,14 @@ class TenantSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
         fields = ["id", "name", "slug", "accent_color", "logo_url"]
+
+
+class PersonDirectorySerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(source="person.id")
+    email = serializers.EmailField(source="person.email")
+    display_name = serializers.CharField(source="person.display_name")
+    org_unit = serializers.CharField(source="org_unit.name", default=None)
+
+    class Meta:
+        model = Membership
+        fields = ["id", "email", "display_name", "org_unit", "status"]

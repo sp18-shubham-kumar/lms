@@ -4,6 +4,7 @@ from typing import Any
 
 from django.contrib.auth import authenticate
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
+from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,12 +14,13 @@ from apps.identity.models import Membership, Tenant
 from apps.identity.serializers import (
     LoginSerializer,
     MembershipSummarySerializer,
+    PersonDirectorySerializer,
     PersonSummarySerializer,
     TenantSummarySerializer,
 )
 from core import audit
 from core.context import get_current_tenant
-from core.permissions import capabilities_for
+from core.permissions import HasCapability, capabilities_for
 
 
 class LoginView(APIView):
@@ -74,4 +76,18 @@ class SessionView(APIView):
                 "capabilities": sorted(capabilities_for(request.user, tenant_id)),
                 "memberships": MembershipSummarySerializer(memberships, many=True).data,
             }
+        )
+
+
+class PeopleListView(ListAPIView):
+    """Paginated directory of all active-tenant members. Gated by directory.view."""
+
+    serializer_class = PersonDirectorySerializer
+    permission_classes = [*APIView.permission_classes, HasCapability]
+    required_capability = "directory.view"
+
+    def get_queryset(self):
+        # Membership.objects is tenant-scoped (fails closed with no tenant in context).
+        return Membership.objects.select_related("person", "org_unit").order_by(
+            "person__display_name"
         )
