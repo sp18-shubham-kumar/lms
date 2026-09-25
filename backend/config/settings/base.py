@@ -120,6 +120,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Custom user model — a Person is the global identity (see docs/specs/data-model.md).
+AUTH_USER_MODEL = "identity.Person"
+
 # --- DRF --------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
