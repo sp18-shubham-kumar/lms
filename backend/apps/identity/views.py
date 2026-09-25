@@ -80,7 +80,12 @@ class SessionView(APIView):
 
 
 class PeopleListView(ListAPIView):
-    """Paginated directory of all active-tenant members. Gated by directory.view."""
+    """Paginated directory of the active tenant's ACTIVE members. Gated by directory.view.
+
+    Only memberships with status="active" are included; ended or suspended memberships
+    are hidden per spec (data-model.md: "Ending a membership hides the person from
+    tenant reports").
+    """
 
     serializer_class = PersonDirectorySerializer
     permission_classes = [*APIView.permission_classes, HasCapability]
@@ -88,6 +93,8 @@ class PeopleListView(ListAPIView):
 
     def get_queryset(self):
         # Membership.objects is tenant-scoped (fails closed with no tenant in context).
-        return Membership.objects.select_related("person", "org_unit").order_by(
-            "person__display_name"
+        return (
+            Membership.objects.filter(status="active")
+            .select_related("person", "org_unit")
+            .order_by("person__display_name")
         )

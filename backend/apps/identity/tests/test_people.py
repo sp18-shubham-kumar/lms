@@ -73,3 +73,34 @@ def test_people_list_cross_tenant_header_is_403():
         HTTP_X_TENANT_ID=str(tenant_b.id),
     )
     assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+def test_people_list_excludes_ended_members():
+    from django.contrib.auth import get_user_model
+
+    from apps.identity.models import Membership
+    from core.context import tenant_context
+
+    Person = get_user_model()
+
+    tenant_a, active_person = _seed_tenant("acme", "active@acme.test", ["directory.view"])
+
+    # Create a second person in tenant A with an ended membership
+    ended_person = Person.objects.create_user(
+        email="ended@acme.test", display_name="Ended Person", password="pw-12345"
+    )
+    with tenant_context(tenant_a.id):
+        Membership.objects.create(person=ended_person, tenant=tenant_a, status="ended")
+
+    client = APIClient()
+    token = _login(client, "active@acme.test")
+    resp = client.get(
+        "/api/identity/people/",
+        HTTP_AUTHORIZATION=f"Bearer {token}",
+        HTTP_X_TENANT_ID=str(tenant_a.id),
+    )
+    assert resp.status_code == 200
+    emails = {row["email"] for row in resp.json()["results"]}
+    assert "active@acme.test" in emails
+    assert "ended@acme.test" not in emails  # ended membership must not appear
