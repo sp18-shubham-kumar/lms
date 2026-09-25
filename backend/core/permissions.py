@@ -50,7 +50,7 @@ def capabilities_for(actor: Any, tenant_id: Any) -> set[str]:
         return set()
     return set(
         RoleCapability.all_tenants.filter(tenant_id=tenant_id, role_id__in=role_ids).values_list(
-            "capability_id", flat=True
+            "capability__key", flat=True
         )
     )
 
