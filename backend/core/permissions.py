@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import BasePermission
 
 from core.context import get_current_tenant
@@ -105,3 +106,22 @@ class HasCapability(BasePermission):
         if capability is None:
             return False
         return can(request.user, capability, obj)
+
+
+class IsActiveTenantMember(BasePermission):
+    """Authenticated requests must be an active member of the active tenant."""
+
+    message = "You are not an active member of this tenant."
+
+    def has_permission(self, request: Any, view: Any) -> bool:
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated:
+            return False  # IsAuthenticated already returned 401; belt and braces.
+        tenant_id = get_current_tenant()
+        if tenant_id is None:
+            raise ValidationError({"tenant": "X-Tenant-Id header is required."})
+        from apps.identity.models import Membership
+
+        return Membership.all_tenants.filter(
+            person=user, tenant_id=tenant_id, status="active"
+        ).exists()
