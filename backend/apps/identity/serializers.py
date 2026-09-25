@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from apps.identity.models import Membership, Person
+from apps.identity.models import Membership, Person, Tenant
 
 
 class LoginSerializer(serializers.Serializer):
@@ -25,3 +25,9 @@ class PersonSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Person
         fields = ["id", "email", "display_name"]
+
+
+class TenantSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tenant
+        fields = ["id", "name", "slug", "accent_color", "logo_url"]

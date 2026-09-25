@@ -9,9 +9,16 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.identity.models import Membership
-from apps.identity.serializers import LoginSerializer, MembershipSummarySerializer
+from apps.identity.models import Membership, Tenant
+from apps.identity.serializers import (
+    LoginSerializer,
+    MembershipSummarySerializer,
+    PersonSummarySerializer,
+    TenantSummarySerializer,
+)
 from core import audit
+from core.context import get_current_tenant
+from core.permissions import capabilities_for
 
 
 class LoginView(APIView):
@@ -44,6 +51,27 @@ class LoginView(APIView):
             {
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
+                "memberships": MembershipSummarySerializer(memberships, many=True).data,
+            }
+        )
+
+
+class SessionView(APIView):
+    """Who am I, in this tenant. Default permissions require auth + membership."""
+
+    def get(self, request):
+        tenant_id = get_current_tenant()
+        tenant = Tenant.objects.get(id=tenant_id)
+        memberships = list(
+            Membership.all_tenants.filter(person=request.user, status="active").select_related(
+                "tenant"
+            )
+        )
+        return Response(
+            {
+                "person": PersonSummarySerializer(request.user).data,
+                "tenant": TenantSummarySerializer(tenant).data,
+                "capabilities": sorted(capabilities_for(request.user, tenant_id)),
                 "memberships": MembershipSummarySerializer(memberships, many=True).data,
             }
         )
