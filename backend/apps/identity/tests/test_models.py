@@ -1,5 +1,8 @@
 import pytest
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
+
+from core.context import tenant_context
 
 Person = get_user_model()
 
@@ -27,3 +30,15 @@ def test_create_superuser_flags():
 @pytest.mark.django_db
 def test_email_is_the_username_field():
     assert Person.USERNAME_FIELD == "email"
+
+
+@pytest.mark.django_db
+def test_membership_is_unique_per_person_tenant():
+    from apps.identity.models import Membership, Tenant
+
+    person = Person.objects.create_user(email="bob@acme.test", display_name="Bob")
+    tenant = Tenant.objects.create(slug="acme", name="Acme", status="active", plan="pro")
+    with tenant_context(tenant.id):
+        Membership.objects.create(person=person, tenant=tenant, status="active")
+        with pytest.raises(IntegrityError):
+            Membership.objects.create(person=person, tenant=tenant, status="active")

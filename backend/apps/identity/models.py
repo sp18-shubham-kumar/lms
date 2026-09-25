@@ -16,10 +16,11 @@ Conventions:
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 
-from core.models import TimeStampedModel, UUIDModel
+from core.models import TenantScopedModel, TimeStampedModel, UUIDModel
 
 
 class PersonManager(BaseUserManager["Person"]):
@@ -62,3 +63,55 @@ class Person(AbstractBaseUser, PermissionsMixin, UUIDModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.email
+
+
+class Tenant(UUIDModel, TimeStampedModel):
+    """The organisation boundary. NOT tenant-scoped — it defines the boundary."""
+
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+    status = models.CharField(max_length=32, default="active")
+    plan = models.CharField(max_length=32, default="free")
+    accent_color = models.CharField(max_length=9, blank=True, default="")
+    logo_url = models.URLField(blank=True, default="")
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class OrgUnit(TenantScopedModel):
+    parent = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.CASCADE, related_name="children"
+    )
+    name = models.CharField(max_length=255)
+    path = models.CharField(max_length=1024, blank=True, default="")
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Membership(TenantScopedModel):
+    person = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="memberships"
+    )
+    org_unit = models.ForeignKey(
+        OrgUnit, null=True, blank=True, on_delete=models.SET_NULL, related_name="members"
+    )
+    employee_ref = models.CharField(max_length=255, blank=True, default="")
+    status = models.CharField(max_length=32, default="active")
+    joined_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["person", "tenant"], name="uniq_membership_person_tenant"
+            )
+        ]
+
+
+class IdentityProvider(TenantScopedModel):
+    kind = models.CharField(max_length=32)
+    issuer = models.CharField(max_length=255, blank=True, default="")
+    client_id = models.CharField(max_length=255, blank=True, default="")
+    domain_hint = models.CharField(max_length=255, blank=True, default="")
