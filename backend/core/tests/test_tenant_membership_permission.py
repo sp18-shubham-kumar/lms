@@ -1,6 +1,8 @@
 # backend/core/tests/test_tenant_membership_permission.py
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AnonymousUser
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIRequestFactory, force_authenticate
 
 from core.context import tenant_context
@@ -34,3 +36,19 @@ def test_non_member_is_denied():
     request.user = person
     with tenant_context(tenant.id):
         assert IsActiveTenantMember().has_permission(request, view=None) is False
+
+
+def test_unauthenticated_is_denied():
+    request = APIRequestFactory().get("/api/auth/session/")
+    request.user = AnonymousUser()
+    assert IsActiveTenantMember().has_permission(request, view=None) is False
+
+
+@pytest.mark.django_db
+def test_no_tenant_context_raises_validation_error():
+    person = Person.objects.create_user(email="notenant@x.test", display_name="NT")
+    request = APIRequestFactory().get("/api/auth/session/")
+    request.user = person
+    with pytest.raises(ValidationError) as exc:
+        IsActiveTenantMember().has_permission(request, view=None)
+    assert "tenant" in exc.value.detail
