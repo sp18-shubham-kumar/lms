@@ -19,10 +19,10 @@ interface NavItem {
 // Ungated items are available to any signed-in member; gated items appear only
 // when the capability is present in the session payload.
 const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/directory', label: 'People' },
-  { to: '/skills', label: 'Skills' },
-  { to: '/admin', label: 'Admin', capability: 'taxonomy.edit' },
+  { to: '/', label: 'Home' },
+  { to: '/directory', label: 'Directory', capability: 'directory.view' },
+  { to: '/skills', label: 'Skills', capability: 'skill.claim.submit' },
+  { to: '/admin', label: 'Admin', capability: 'member.invite' },
 ]
 
 export function AppShell() {

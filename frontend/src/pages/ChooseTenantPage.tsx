@@ -1,21 +1,17 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
-import { useTenant, type Tenant } from '../lib/tenant'
-
-// Placeholder tenants. Phase 1 replaces this with the memberships returned by the
-// session endpoint (login lists a person's active memberships; one → straight in,
-// two+ → this picker).
-const DEMO_TENANTS: Tenant[] = [
-  { id: '00000000-0000-0000-0000-000000000001', name: 'Acme', accentColor: '#4f46e5' },
-  { id: '00000000-0000-0000-0000-000000000002', name: 'Northwind', accentColor: '#0891b2' },
-]
+import { useAuth, type Membership } from '../lib/auth'
+import { useTenant } from '../lib/tenant'
 
 export function ChooseTenantPage() {
   const { setTenant } = useTenant()
+  const { loadSession } = useAuth()
   const navigate = useNavigate()
+  const memberships = (useLocation().state?.memberships ?? []) as Membership[]
 
-  const pick = (tenant: Tenant) => {
-    setTenant(tenant) // clears cross-tenant cache + applies theme
+  const pick = async (m: Membership) => {
+    setTenant({ id: m.tenant_id, name: m.name, accentColor: m.accent_color })
+    await loadSession()
     navigate('/')
   }
 
@@ -24,20 +20,20 @@ export function ChooseTenantPage() {
       <div className="w-full max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <h1 className="text-xl font-semibold text-slate-900">Choose an organization</h1>
         <p className="text-sm text-slate-500">
-          You have access to more than one tenant. Pick which one to work in.
+          You belong to more than one. Pick which to work in.
         </p>
         <ul className="space-y-2">
-          {DEMO_TENANTS.map((tenant) => (
-            <li key={tenant.id}>
+          {memberships.map((m) => (
+            <li key={m.tenant_id}>
               <button
-                onClick={() => pick(tenant)}
+                onClick={() => void pick(m)}
                 className="flex w-full items-center gap-3 rounded-lg border border-slate-200 px-4 py-3 text-left hover:bg-slate-50"
               >
                 <span
                   className="inline-block h-8 w-8 rounded"
-                  style={{ backgroundColor: tenant.accentColor }}
+                  style={{ backgroundColor: m.accent_color }}
                 />
-                <span className="font-medium text-slate-800">{tenant.name}</span>
+                <span className="font-medium text-slate-800">{m.name}</span>
               </button>
             </li>
           ))}
