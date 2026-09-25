@@ -1,8 +1,7 @@
-"""Routes for the identity app. Populated during implementation (see docs/specs/)."""
+from django.urls import path
 
-from rest_framework.routers import DefaultRouter
+from apps.identity.views import LoginView
 
-router = DefaultRouter()
-# router.register("<resource>", <ViewSet>, basename="<resource>")
-
-urlpatterns = router.urls
+urlpatterns = [
+    path("login/", LoginView.as_view(), name="auth-login"),
+]
