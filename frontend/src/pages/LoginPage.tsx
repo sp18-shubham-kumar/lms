@@ -2,11 +2,13 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../lib/auth'
+import { useTenant } from '../lib/tenant'
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { login, loadSession } = useAuth()
+  const { setTenant } = useTenant()
   const navigate = useNavigate()
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -16,12 +18,17 @@ export function LoginPage() {
     setError(null)
     setBusy(true)
     try {
-      await login(username, password)
-      // With >1 membership the spec routes to a tenant picker; scaffold always
-      // sends users to /choose so the flow is visible.
-      navigate('/choose')
+      const memberships = await login(email, password)
+      if (memberships.length === 1) {
+        const m = memberships[0]
+        setTenant({ id: m.tenant_id, name: m.name, accentColor: m.accent_color })
+        await loadSession()
+        navigate('/')
+      } else {
+        navigate('/choose', { state: { memberships } })
+      }
     } catch {
-      setError('Invalid credentials, or the backend has no users yet.')
+      setError('Invalid email or password.')
     } finally {
       setBusy(false)
     }
@@ -37,17 +44,16 @@ export function LoginPage() {
           <h1 className="text-xl font-semibold text-slate-900">Sign in</h1>
           <p className="mt-1 text-sm text-slate-500">Skills LMS</p>
         </div>
-
         <label className="block text-sm">
-          <span className="text-slate-700">Username</span>
+          <span className="text-slate-700">Email</span>
           <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             autoComplete="username"
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:border-slate-400"
           />
         </label>
-
         <label className="block text-sm">
           <span className="text-slate-700">Password</span>
           <input
@@ -58,9 +64,7 @@ export function LoginPage() {
             className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 outline-none focus:border-slate-400"
           />
         </label>
-
         {error && <p className="text-sm text-red-600">{error}</p>}
-
         <button
           type="submit"
           disabled={busy}

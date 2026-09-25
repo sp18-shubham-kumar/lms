@@ -1,15 +1,13 @@
-/**
- * Authentication + session context.
- *
- * The spec's session payload carries the user, their capability set, the active
- * tenant theme, and org scope — one request drives all conditional rendering.
- * Phase 1 will add a `/auth/session/` (or `/me/`) endpoint returning that shape;
- * until then this provider tracks token presence and exposes a capability seam
- * (`hasCapability`) so components can be written against it now.
- */
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 
-import { api, tokenStore } from './api'
+import { api, tenantStore, tokenStore } from './api'
+
+export interface Membership {
+  tenant_id: string
+  slug: string
+  name: string
+  accent_color: string
+}
 
 export interface Session {
   /** Capability keys the current user holds in the active tenant. */
@@ -21,7 +19,8 @@ export interface Session {
 interface AuthContextValue {
   isAuthenticated: boolean
   session: Session | null
-  login: (username: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<Membership[]>
+  loadSession: () => Promise<void>
   logout: () => void
   hasCapability: (capability: string) => boolean
 }
@@ -33,15 +32,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tokenStore.getAccess() ? { capabilities: [] } : null,
   )
 
-  const login = useCallback(async (username: string, password: string) => {
-    const resp = await api.post('/auth/token/', { username, password })
+  const login = useCallback(async (email: string, password: string) => {
+    const resp = await api.post('/auth/login/', { email, password })
     tokenStore.set(resp.data.access, resp.data.refresh)
-    // TODO(phase-1): fetch /auth/session/ and populate capabilities + theme.
     setSession({ capabilities: [] })
+    return resp.data.memberships as Membership[]
+  }, [])
+
+  const loadSession = useCallback(async () => {
+    if (!tokenStore.getAccess() || !tenantStore.get()) return
+    const resp = await api.get('/auth/session/')
+    setSession({
+      capabilities: resp.data.capabilities ?? [],
+      displayName: resp.data.person?.display_name,
+    })
   }, [])
 
   const logout = useCallback(() => {
     tokenStore.clear()
+    tenantStore.clear()
     setSession(null)
   }, [])
 
@@ -55,10 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: session !== null,
       session,
       login,
+      loadSession,
       logout,
       hasCapability,
     }),
-    [session, login, logout, hasCapability],
+    [session, login, loadSession, logout, hasCapability],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
