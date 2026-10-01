@@ -1,8 +1,11 @@
-"""Routes for the skills app. Populated during implementation (see docs/specs/)."""
+"""Routes for the skills app."""
 
 from rest_framework.routers import DefaultRouter
 
+from apps.skills.views import SkillDomainViewSet, SkillViewSet
+
 router = DefaultRouter()
-# router.register("<resource>", <ViewSet>, basename="<resource>")
+router.register("domains", SkillDomainViewSet, basename="skill-domain")
+router.register("skills", SkillViewSet, basename="skill")
 
 urlpatterns = router.urls
