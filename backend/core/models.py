@@ -62,6 +62,34 @@ class TenantScopedModel(UUIDModel, TimeStampedModel):
         abstract = True
 
 
+class IdempotencyRecord(TenantScopedModel):
+    """
+    Remembers the first response for a client-supplied ``Idempotency-Key`` so a
+    retried write returns the original result instead of creating a duplicate.
+
+    Scoped per tenant (inherits ``tenant`` FK). Uniqueness is per
+    ``(tenant, key, method, path)`` so the same key can be safely reused across
+    distinct endpoints.
+    """
+
+    key = models.CharField(max_length=255)
+    method = models.CharField(max_length=10)
+    path = models.CharField(max_length=512)
+    response_status = models.PositiveSmallIntegerField()
+    response_body = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "key", "method", "path"],
+                name="uniq_idempotency_tenant_key_method_path",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"IdempotencyRecord({self.method} {self.path} {self.key})"
+
+
 class AuditLog(UUIDModel, TimeStampedModel):
     """Append-only audit trail. NOT tenant-scoped — records cross-context events."""
 
