@@ -3,18 +3,44 @@
 /*
  * Design tokens as CSS custom properties.
  *
- * Tenant theming (accent, logo) is applied at runtime by setting these
- * variables on :root when the session loads — so a tenant's brand applies
- * without a rebuild (see src/lib/tenant.tsx). Keep the defaults neutral.
+ * Direction: "Path" — a guided-roadmap look. Teal brand, a warm-neutral
+ * ground, and a four-step level ramp (Aware → Expert).
+ *
+ * Tenant theming still wins: the accent is applied at runtime by setting
+ * `--tenant-accent` on :root when the session loads (see src/lib/tenant.tsx),
+ * so a tenant's brand applies without a rebuild. Interactive accenting in the
+ * UI derives from `--tenant-accent` (via color-mix for tints) and defaults to
+ * the Path teal below.
  */
 @theme {
-  --color-accent: #4f46e5;
+  --color-accent: #0d9488;
   --color-accent-foreground: #ffffff;
+
+  /* Path brand scale (teal) */
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-300: #5eead4;
+  --color-brand-500: #14b8a6;
+  --color-brand-600: #0d9488;
+  --color-brand-700: #0f766e;
+  --color-brand-900: #134e4a;
+
+  /* Skill-level ramp, Aware → Expert */
+  --color-level-1: #99f6e4;
+  --color-level-2: #2dd4bf;
+  --color-level-3: #0d9488;
+  --color-level-4: #0f766e;
+
+  /* Warm-neutral ground + ink */
+  --color-ground: #f6faf9;
+  --color-ink: #0f2e2a;
+  --color-ink-soft: #5c7671;
 }
 
 :root {
-  /* Overridable at runtime per tenant. */
-  --tenant-accent: #4f46e5;
+  /* Overridable at runtime per tenant. Defaults to the Path teal. */
+  --tenant-accent: #0d9488;
 }
 
 html,
@@ -25,12 +51,13 @@ body,
 
 body {
   margin: 0;
-  background-color: #f8fafc;
-  color: #0f172a;
+  background-color: var(--color-ground);
+  color: var(--color-ink);
   font-family:
     system-ui,
     -apple-system,
     'Segoe UI',
     Roboto,
     sans-serif;
+  -webkit-font-smoothing: antialiased;
 }

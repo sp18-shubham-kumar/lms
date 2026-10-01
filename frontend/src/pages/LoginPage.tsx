@@ -5,9 +5,16 @@ import { useAuth } from '../lib/auth'
 import { useTenant } from '../lib/tenant'
 
 export function LoginPage() {
-  const { login, loadSession } = useAuth()
+  const { login, loadSession, enterDemo } = useAuth()
   const { setTenant } = useTenant()
   const navigate = useNavigate()
+
+  // Dev-only: preview the UI with mock data, no backend required.
+  const startDemo = () => {
+    setTenant({ id: 'demo-acme', name: 'Acme Data', accentColor: '#0d9488' })
+    enterDemo()
+    navigate('/')
+  }
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -73,6 +80,16 @@ export function LoginPage() {
         >
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
+
+        {import.meta.env.DEV && (
+          <button
+            type="button"
+            onClick={startDemo}
+            className="w-full rounded-md border border-brand-200 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50"
+          >
+            Explore the demo (mock data) →
+          </button>
+        )}
       </form>
     </div>
   )

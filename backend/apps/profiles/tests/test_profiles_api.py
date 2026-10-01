@@ -89,8 +89,8 @@ def test_track_list_isolation():
     from apps.profiles.models import Track
     from core.context import tenant_context
 
-    tenant_a, _, _ = _seed_tenant("acme", "a@acme.test", ["jobprofile.edit"])
-    tenant_b, _, _ = _seed_tenant("northwind", "b@nw.test", ["jobprofile.edit"])
+    tenant_a, _, _ = _seed_tenant("acme", "a@acme.test", ["directory.view", "jobprofile.edit"])
+    tenant_b, _, _ = _seed_tenant("northwind", "b@nw.test", ["directory.view", "jobprofile.edit"])
 
     with tenant_context(tenant_a.id):
         Track.objects.create(tenant=tenant_a, name="A-Track")
@@ -165,8 +165,8 @@ def test_job_profile_list_isolation():
     from apps.profiles.models import JobProfile, Track
     from core.context import tenant_context
 
-    tenant_a, _, _ = _seed_tenant("acme", "a@acme.test", ["jobprofile.edit"])
-    tenant_b, _, _ = _seed_tenant("northwind", "b@nw.test", ["jobprofile.edit"])
+    tenant_a, _, _ = _seed_tenant("acme", "a@acme.test", ["directory.view", "jobprofile.edit"])
+    tenant_b, _, _ = _seed_tenant("northwind", "b@nw.test", ["directory.view", "jobprofile.edit"])
 
     with tenant_context(tenant_a.id):
         track_a = Track.objects.create(tenant=tenant_a, name="A-Track")
@@ -375,3 +375,28 @@ def test_job_profile_idempotent_create():
     assert r1.json()["id"] == r2.json()["id"]
     with tenant_context(tenant.id):
         assert JobProfile.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_job_profile_list_allowed_with_directory_view():
+    """A learner (directory.view only) can browse job profiles to pick a target grade."""
+    from apps.profiles.models import JobProfile, Track
+    from core.context import tenant_context
+
+    tenant, _, _ = _seed_tenant("acme", "a@acme.test", ["directory.view"])
+    with tenant_context(tenant.id):
+        track = Track.objects.create(tenant=tenant, name="Data")
+        JobProfile.objects.create(
+            tenant=tenant, track=track, grade=2, title="DE L2", status="published"
+        )
+
+    client = APIClient()
+    token = _login(client, "a@acme.test")
+    resp = client.get(
+        "/api/profiles/job-profiles/",
+        HTTP_AUTHORIZATION=f"Bearer {token}",
+        HTTP_X_TENANT_ID=str(tenant.id),
+    )
+    assert resp.status_code == 200
+    titles = [p["title"] for p in resp.json()["results"]]
+    assert "DE L2" in titles
