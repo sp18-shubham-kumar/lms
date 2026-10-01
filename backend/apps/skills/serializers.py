@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from apps.skills.models import SelfDeclaredSkill, Skill, SkillDomain
+from apps.skills.models import (
+    SelfDeclaredSkill,
+    Skill,
+    SkillDomain,
+    SkillEdge,
+    SkillLevel,
+    TenantSkillOverride,
+)
 
 
 class SkillDomainSerializer(serializers.ModelSerializer):
@@ -47,3 +54,44 @@ class SelfDeclaredSkillSerializer(serializers.ModelSerializer):
         if value is not None and not (1 <= value <= 5):
             raise serializers.ValidationError("level must be between 1 and 5.")
         return value
+
+
+class SkillLevelSerializer(serializers.ModelSerializer):
+    """A single rung of a skill's rubric grid (level 1..5)."""
+
+    class Meta:
+        model = SkillLevel
+        fields = [
+            "id",
+            "level",
+            "title",
+            "indicators",
+            "evidence_kinds",
+            "min_verifier_level",
+            "validity_months",
+        ]
+        read_only_fields = ["id"]
+
+
+class SkillLevelsReplaceSerializer(serializers.Serializer):
+    """Request body for PUT ``/skills/{id}/levels/`` — replaces the whole rubric grid."""
+
+    levels = SkillLevelSerializer(many=True)
+
+
+class SkillEdgeSerializer(serializers.ModelSerializer):
+    """A prerequisite/adjacent edge from one skill to another."""
+
+    class Meta:
+        model = SkillEdge
+        fields = ["id", "from_skill", "to_skill", "kind"]
+        read_only_fields = ["id", "from_skill"]
+
+
+class TenantSkillOverrideSerializer(serializers.ModelSerializer):
+    """A tenant's copy-on-write override of a skill (rename / relabel / hide)."""
+
+    class Meta:
+        model = TenantSkillOverride
+        fields = ["id", "skill", "name", "status", "hidden"]
+        read_only_fields = ["id", "skill"]

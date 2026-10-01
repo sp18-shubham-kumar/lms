@@ -11,7 +11,7 @@ from typing import Any
 
 from django.core.exceptions import ValidationError
 
-from apps.skills.models import Skill, SkillEdge
+from apps.skills.models import Skill, SkillEdge, TenantSkillOverride
 from core import audit
 
 
@@ -80,3 +80,45 @@ def add_edge(from_skill: Skill, to_skill: Skill, kind: str) -> SkillEdge:
     return SkillEdge.objects.create(
         tenant_id=from_skill.tenant_id, from_skill=from_skill, to_skill=to_skill, kind=kind
     )
+
+
+def _overrides_for(tenant_id: Any, skill_ids: Any) -> dict[Any, TenantSkillOverride]:
+    if tenant_id is None:
+        return {}
+    return {
+        ov.skill_id: ov for ov in TenantSkillOverride.objects.filter(skill_id__in=list(skill_ids))
+    }
+
+
+def apply_override(skill: Skill, override: TenantSkillOverride | None) -> Skill:
+    """
+    Return the skill with the tenant's override applied **in memory** (copy-on-write).
+
+    The global/shared row is never mutated — only the in-memory instance's ``name``
+    / ``status`` are overlaid when the override sets them.
+    """
+    if override is None:
+        return skill
+    if override.name:
+        skill.name = override.name
+    if override.status:
+        skill.status = override.status
+    return skill
+
+
+def resolve_skill_view(queryset: Any, tenant_id: Any) -> list[Skill]:
+    """
+    Materialise ``queryset`` applying this tenant's :class:`TenantSkillOverride` rows:
+    rename (``name``), relabel (``status``), and drop ``hidden`` skills — all without
+    mutating the underlying (possibly global) rows. Overrides from other tenants are
+    invisible (the override read is tenant-scoped).
+    """
+    skills = list(queryset)
+    overrides = _overrides_for(tenant_id, [s.id for s in skills])
+    resolved: list[Skill] = []
+    for skill in skills:
+        override = overrides.get(skill.id)
+        if override is not None and override.hidden:
+            continue
+        resolved.append(apply_override(skill, override))
+    return resolved

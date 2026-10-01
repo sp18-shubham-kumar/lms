@@ -186,3 +186,24 @@ class SelfDeclaredSkill(TenantScopedModel):
 
     def __str__(self) -> str:
         return f"SelfDeclaredSkill({self.membership_id}, {self.skill_id})"
+
+
+class TenantSkillOverride(TenantScopedModel):
+    """
+    A tenant's copy-on-write override of a (usually global) skill: rename via
+    ``name``, change local ``status``, or ``hidden`` it from this tenant's reads —
+    all without mutating the shared global row. One override per (tenant, skill).
+    """
+
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="overrides")
+    name = models.CharField(max_length=255, blank=True, default="")
+    status = models.CharField(max_length=16, blank=True, default="")
+    hidden = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["tenant", "skill"], name="uniq_tenant_skill_override")
+        ]
+
+    def __str__(self) -> str:
+        return f"TenantSkillOverride({self.tenant_id}, {self.skill_id})"
