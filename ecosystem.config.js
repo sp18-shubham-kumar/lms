@@ -14,7 +14,7 @@ module.exports = {
       cwd: "./backend",
       // Use the project virtualenv's Python directly.
       script: "./.venv/bin/python",
-      args: "manage.py runserver 0.0.0.0:8000",
+      args: "manage.py runserver 0.0.0.0:8080",
       interpreter: "none",
       env: {
         DJANGO_SETTINGS_MODULE: "config.settings.dev",
