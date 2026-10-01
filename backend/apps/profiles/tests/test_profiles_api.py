@@ -46,9 +46,7 @@ def _seed_skill(tenant):
 
     with tenant_context(tenant.id):
         domain = SkillDomain.objects.create(tenant=tenant, name="Engineering")
-        return Skill.objects.create(
-            tenant=tenant, domain=domain, name="SQL", slug="sql", version=1
-        )
+        return Skill.objects.create(tenant=tenant, domain=domain, name="SQL", slug="sql", version=1)
 
 
 # ─── Track CRUD ──────────────────────────────────────────────────────────────

@@ -128,4 +128,4 @@ class ReadinessSnapshot(TenantScopedModel):
         ]
 
     def __str__(self) -> str:
-        return f"ReadinessSnapshot({self.membership_id}, {self.job_profile_id}, {self.met}/{self.total})"
+        return f"ReadinessSnapshot({self.membership_id}, {self.job_profile_id}, {self.met}/{self.total})"  # type: ignore[attr-defined]

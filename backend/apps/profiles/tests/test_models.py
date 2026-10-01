@@ -35,9 +35,7 @@ def _seed_skill(tenant):
 
     with tenant_context(tenant.id):
         domain = SkillDomain.objects.create(tenant=tenant, name="Engineering")
-        return Skill.objects.create(
-            tenant=tenant, domain=domain, name="SQL", slug="sql", version=1
-        )
+        return Skill.objects.create(tenant=tenant, domain=domain, name="SQL", slug="sql", version=1)
 
 
 @pytest.mark.django_db
@@ -83,9 +81,7 @@ def test_profile_requirement_unique_constraint():
     skill = _seed_skill(tenant)
     with tenant_context(tenant.id):
         track = Track.objects.create(tenant=tenant, name="Backend")
-        profile = JobProfile.objects.create(
-            tenant=tenant, track=track, grade=1, title="L1"
-        )
+        profile = JobProfile.objects.create(tenant=tenant, track=track, grade=1, title="L1")
         ProfileRequirement.objects.create(
             tenant=tenant,
             job_profile=profile,

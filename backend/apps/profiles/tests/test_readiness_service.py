@@ -13,7 +13,6 @@ Missing assertion counts as unmet (no crash)
 """
 
 import pytest
-from django.utils import timezone
 
 
 def _seed_tenant(slug, email, cap_keys):
@@ -50,7 +49,12 @@ def _seed_profile_with_reqs(tenant):
             tenant=tenant, domain=domain, name="SQL", slug="sql", version=1, status="published"
         )
         python_skill = Skill.objects.create(
-            tenant=tenant, domain=domain, name="Python", slug="python", version=1, status="published"
+            tenant=tenant,
+            domain=domain,
+            name="Python",
+            slug="python",
+            version=1,
+            status="published",
         )
         dbt_skill = Skill.objects.create(
             tenant=tenant, domain=domain, name="dbt", slug="dbt", version=1, status="published"
@@ -194,9 +198,10 @@ def test_compute_readiness_updates_existing_snapshot():
         s2 = services.compute_readiness(membership, profile)
         assert s2.met == 1
         # Only one snapshot row per (membership, job_profile)
-        assert ReadinessSnapshot.objects.filter(
-            membership=membership, job_profile=profile
-        ).count() == 1
+        assert (
+            ReadinessSnapshot.objects.filter(membership=membership, job_profile=profile).count()
+            == 1
+        )
 
 
 @pytest.mark.django_db
@@ -211,7 +216,7 @@ def test_recompute_for_membership_calls_compute_for_profiles():
 
     with tenant_context(tenant.id):
         # First seed an initial snapshot so recompute_for_membership knows to target this profile
-        s1 = services.compute_readiness(membership, profile)
+        services.compute_readiness(membership, profile)
         assert ReadinessSnapshot.objects.count() == 1
 
         # Now recompute

@@ -11,14 +11,16 @@ Usage:
 
 from __future__ import annotations
 
+from argparse import ArgumentParser
+
 from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
     help = "Recompute readiness snapshots for all memberships (optionally filtered by tenant)."
 
-    def add_arguments(self, parser: object) -> None:
-        parser.add_argument(  # type: ignore[union-attr]
+    def add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument(
             "--tenant",
             dest="tenant_slug",
             default=None,
@@ -35,17 +37,15 @@ class Command(BaseCommand):
         if tenant_slug:
             try:
                 tenant = Tenant.objects.get(slug=tenant_slug)
-            except Tenant.DoesNotExist:
-                raise CommandError(f"Tenant with slug '{tenant_slug}' not found.")
+            except Tenant.DoesNotExist as exc:
+                raise CommandError(f"Tenant with slug '{tenant_slug}' not found.") from exc
             tenants = [tenant]
         else:
             tenants = list(Tenant.objects.all())
 
         total_recomputed = 0
         for tenant in tenants:
-            memberships = list(
-                Membership.all_tenants.filter(tenant=tenant, status="active")
-            )
+            memberships = list(Membership.all_tenants.filter(tenant=tenant, status="active"))
             profiles = list(JobProfile.all_tenants.filter(tenant=tenant))
             if not profiles:
                 continue
@@ -55,7 +55,5 @@ class Command(BaseCommand):
                     total_recomputed += 1
 
         self.stdout.write(
-            self.style.SUCCESS(
-                f"Recomputed {total_recomputed} readiness snapshot(s)."
-            )
+            self.style.SUCCESS(f"Recomputed {total_recomputed} readiness snapshot(s).")
         )

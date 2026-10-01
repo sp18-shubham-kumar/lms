@@ -7,23 +7,28 @@ Endpoints:
   + POST /job-profiles/{id}/requirements/          add requirement
   + DELETE /job-profiles/{id}/requirements/{req}/  remove requirement
   + POST /job-profiles/{id}/publish/               publish (versioned)
+- /api/profiles/me/readiness/      learner gap view (skill.claim.submit)
+- /api/profiles/readiness/         team snapshots (report.org.view)
+- /api/profiles/heatmap/           members x core reqs grid (report.org.view)
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ParseError, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.profiles import services
-from apps.profiles.models import JobProfile, ProfileRequirement, Track
+from apps.profiles.models import JobProfile, ProfileRequirement, ReadinessSnapshot, Track
 from apps.profiles.serializers import (
     JobProfileSerializer,
     ProfileRequirementSerializer,
+    ReadinessSnapshotSerializer,
     TrackSerializer,
 )
 from core import audit
@@ -254,9 +259,7 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         """Remove a requirement from this job profile."""
         profile = self.get_object()
         tenant_id = get_current_tenant()
-        requirement = ProfileRequirement.objects.filter(
-            id=req_id, job_profile=profile
-        ).first()
+        requirement = ProfileRequirement.objects.filter(id=req_id, job_profile=profile).first()
         if requirement is None:
             from django.http import Http404
 
@@ -288,3 +291,271 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         profile = self.get_object()
         published = services.publish_job_profile(profile, request.user)
         return Response(self.get_serializer(published).data)
+
+
+# ─── Readiness / gap / heatmap views ─────────────────────────────────────────
+
+
+@extend_schema(
+    summary="My gap against a job profile",
+    description=(
+        "Return the caller's gap for a target job profile. For each requirement, "
+        "returns skill name, required level, current verified assertion level (or null), "
+        "and status (met/close/not_started). Results are sorted with unmet requirements "
+        "first (closest-to-done = lowest gap) and met requirements last. "
+        "Includes overall readiness_pct (met/total * 100 for core requirements). "
+        "Requires skill.claim.submit."
+    ),
+    parameters=[
+        OpenApiParameter(
+            "target",
+            description="UUID of the target JobProfile.",
+            required=True,
+            type=str,
+        )
+    ],
+    tags=["Profiles"],
+)
+class MeReadinessView(APIView):
+    """
+    Learner gap view — the caller's readiness against a target job profile.
+
+    Reads verified assertions (the only readiness source). Computes on demand
+    if no snapshot exists. Requires ``skill.claim.submit``.
+    """
+
+    required_capability = "skill.claim.submit"
+
+    def get_permissions(self) -> list[Any]:
+        from core.permissions import HasCapability
+
+        perms = [perm() for perm in super().permission_classes]
+        perms.append(HasCapability())
+        return perms
+
+    def get(self, request: Any) -> Response:
+        from apps.identity.models import Membership
+        from apps.skills.models import SkillAssertion
+
+        target_id = request.query_params.get("target")
+        if not target_id:
+            raise ParseError("Query parameter 'target' is required.")
+
+        profile = JobProfile.objects.filter(id=target_id).first()
+        if profile is None:
+            from django.http import Http404
+
+            raise Http404
+
+        # Resolve the caller's membership in this tenant.
+        membership = Membership.objects.filter(person=request.user, status="active").first()
+        if membership is None:
+            raise PermissionDenied("No active membership in this tenant.")
+
+        # Ensure snapshot is up to date.
+        snapshot = services.compute_readiness(membership, profile)
+
+        # Build the per-requirement gap list.
+        requirements = list(
+            ProfileRequirement.objects.filter(job_profile=profile).select_related("skill")
+        )
+        assertions_by_skill: dict[Any, int] = {
+            a.skill_id: a.level for a in SkillAssertion.objects.filter(membership=membership)
+        }
+
+        gap_items = []
+        for req in requirements:
+            assertion_level = assertions_by_skill.get(req.skill_id)
+            is_met = assertion_level is not None and assertion_level >= req.min_level
+
+            if is_met:
+                req_status = "met"
+            elif assertion_level is not None:
+                req_status = "close"
+            else:
+                req_status = "not_started"
+
+            gap = (req.min_level - (assertion_level or 0)) if not is_met else 0
+
+            gap_items.append(
+                {
+                    "skill_id": str(req.skill_id),
+                    "skill_name": req.skill.name,
+                    "criticality": req.criticality,
+                    "min_level": req.min_level,
+                    "current_level": assertion_level,
+                    "status": req_status,
+                    "_sort_key": (0 if req_status != "met" else 1, gap),
+                }
+            )
+
+        # Sort: unmet first (closest-to-done = lowest gap = lowest _sort_key[1]),
+        # met last.
+        gap_items.sort(key=lambda x: x.pop("_sort_key"))
+
+        readiness_pct = int(snapshot.met * 100 / snapshot.total) if snapshot.total > 0 else 0
+
+        return Response(
+            {
+                "job_profile": str(profile.id),
+                "readiness_pct": readiness_pct,
+                "met": snapshot.met,
+                "total": snapshot.total,
+                "requirements": gap_items,
+            }
+        )
+
+
+@extend_schema(
+    summary="Team readiness for a job profile",
+    description=(
+        "List ReadinessSnapshots for all active memberships in the caller's tenant "
+        "for the given job profile. Requires report.org.view."
+    ),
+    parameters=[
+        OpenApiParameter(
+            "job_profile",
+            description="UUID of the target JobProfile.",
+            required=True,
+            type=str,
+        )
+    ],
+    tags=["Profiles"],
+)
+class TeamReadinessView(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """
+    Team-level readiness: all active members' snapshots for a given job profile.
+    Tenant-scoped (reads via scoped manager). Requires ``report.org.view``.
+    """
+
+    serializer_class = ReadinessSnapshotSerializer
+    required_capability = "report.org.view"
+
+    def get_permissions(self) -> list[Any]:
+        from core.permissions import HasCapability
+
+        perms = [perm() for perm in APIView.permission_classes]
+        perms.append(HasCapability())
+        return perms
+
+    def get_queryset(self) -> Any:
+        job_profile_id = self.request.query_params.get("job_profile")
+        qs = ReadinessSnapshot.objects.select_related("membership__person")
+        if job_profile_id:
+            qs = qs.filter(job_profile_id=job_profile_id)
+        return qs.order_by("-met")
+
+
+@extend_schema(
+    summary="Heatmap of member readiness",
+    description=(
+        "Return a grid of members (rows) × core requirements (columns). "
+        "Each cell is {met: bool}. Scoped to the org_unit subtree "
+        "(members whose org_unit path starts with the target org_unit's path). "
+        "Requires report.org.view."
+    ),
+    parameters=[
+        OpenApiParameter("org_unit", description="UUID of the root OrgUnit.", type=str),
+        OpenApiParameter("job_profile", description="UUID of the target JobProfile.", type=str),
+    ],
+    tags=["Profiles"],
+)
+class HeatmapView(APIView):
+    """
+    Heatmap: members × core requirements grid.
+
+    Members are those with an org_unit whose ``path`` starts with the requested
+    org_unit's path (subtree). Each cell is ``{met: bool}`` based on whether a
+    ReadinessSnapshot records the skill as not-blocking. Requires ``report.org.view``.
+    """
+
+    required_capability = "report.org.view"
+
+    def get_permissions(self) -> list[Any]:
+        from core.permissions import HasCapability
+
+        perms = [perm() for perm in super().permission_classes]
+        perms.append(HasCapability())
+        return perms
+
+    def get(self, request: Any) -> Response:
+        from apps.identity.models import Membership, OrgUnit
+
+        org_unit_id = request.query_params.get("org_unit")
+        job_profile_id = request.query_params.get("job_profile")
+
+        if not org_unit_id or not job_profile_id:
+            raise ParseError("Query parameters 'org_unit' and 'job_profile' are required.")
+
+        org_unit = OrgUnit.objects.filter(id=org_unit_id).first()
+        if org_unit is None:
+            from django.http import Http404
+
+            raise Http404
+
+        profile = JobProfile.objects.filter(id=job_profile_id).first()
+        if profile is None:
+            from django.http import Http404
+
+            raise Http404
+
+        # Subtree: memberships whose org_unit path starts with this unit's path.
+        subtree_path = org_unit.path or str(org_unit.id)
+        subtree_member_qs = (
+            Membership.objects.filter(status="active")
+            .filter(
+                org_unit__path__startswith=subtree_path,
+            )
+            .select_related("person", "org_unit")
+        )
+        # Fall back to direct membership if path not set — include exact org_unit match
+        subtree_members = list(
+            subtree_member_qs
+            | Membership.objects.filter(status="active", org_unit=org_unit).select_related(
+                "person", "org_unit"
+            )
+        )
+        # Deduplicate
+        seen_ids: set[Any] = set()
+        unique_members = []
+        for m in subtree_members:
+            if m.id not in seen_ids:
+                seen_ids.add(m.id)
+                unique_members.append(m)
+
+        # Core requirements for this profile (columns).
+        core_reqs = list(
+            ProfileRequirement.objects.filter(job_profile=profile, criticality="core")
+            .select_related("skill")
+            .order_by("skill__name")
+        )
+
+        # Snapshots for these members.
+        snapshot_map: dict[Any, Any] = {
+            s.membership_id: s
+            for s in ReadinessSnapshot.objects.filter(
+                membership__in=unique_members, job_profile=profile
+            )
+        }
+
+        columns = [{"skill_id": str(r.skill_id), "skill_name": r.skill.name} for r in core_reqs]
+
+        rows = []
+        for member in unique_members:
+            snapshot = snapshot_map.get(member.id)
+            blocking_ids: set[Any] = set()
+            if snapshot is not None:
+                blocking_ids = {str(uid) for uid in snapshot.blocking_skill_ids}
+            cells = [
+                {"met": str(req.skill_id) not in blocking_ids and snapshot is not None}
+                for req in core_reqs
+            ]
+            rows.append(
+                {
+                    "membership_id": str(member.id),
+                    "display_name": member.person.display_name,
+                    "cells": cells,
+                }
+            )
+
+        return Response({"columns": columns, "rows": rows})
