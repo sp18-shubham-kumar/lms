@@ -3,14 +3,18 @@ from __future__ import annotations
 from typing import Any
 
 from drf_spectacular.utils import extend_schema
-from rest_framework import viewsets
-from rest_framework.exceptions import PermissionDenied
+from rest_framework import mixins, viewsets
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.skills import services
-from apps.skills.models import Skill, SkillDomain
-from apps.skills.serializers import SkillDomainSerializer, SkillSerializer
+from apps.skills.models import SelfDeclaredSkill, Skill, SkillDomain
+from apps.skills.serializers import (
+    SelfDeclaredSkillSerializer,
+    SkillDomainSerializer,
+    SkillSerializer,
+)
 from core import audit
 from core.context import get_current_tenant
 from core.idempotency import IdempotentCreateMixin
@@ -18,6 +22,7 @@ from core.permissions import HasCapability
 
 READ_CAPABILITY = "directory.view"
 WRITE_CAPABILITY = "taxonomy.edit"
+DECLARE_CAPABILITY = "skill.claim.submit"
 
 # Actions that mutate state require taxonomy.edit; reads require directory.view.
 _WRITE_ACTIONS = {"create", "update", "partial_update", "destroy"}
@@ -93,3 +98,64 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         # DELETE == retire (never delete; assertions point at it).
         self._reject_global(instance)
         services.retire_skill(instance, self.request.user)
+
+
+@extend_schema(tags=["Skills"])
+class SelfDeclaredSkillViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    The caller's own self-declared skills (the untrusted tier).
+
+    Scoped to the caller's active membership in the current tenant — a member
+    only ever sees/creates/deletes their *own* declarations. Audited. ``level``
+    is validated 1..5 and unique per (membership, skill).
+    """
+
+    serializer_class = SelfDeclaredSkillSerializer
+    permission_classes = [*APIView.permission_classes, HasCapability]
+    required_capability = DECLARE_CAPABILITY
+
+    def _current_membership(self) -> Any:
+        from apps.identity.models import Membership
+
+        membership = Membership.objects.filter(person=self.request.user, status="active").first()
+        if membership is None:
+            raise PermissionDenied("No active membership in this tenant.")
+        return membership
+
+    def get_queryset(self) -> Any:
+        # Only the caller's own declarations (tenant-scoped manager + membership).
+        return (
+            SelfDeclaredSkill.objects.filter(membership=self._current_membership())
+            .select_related("skill")
+            .order_by("skill__name")
+        )
+
+    def perform_create(self, serializer: Any) -> None:
+        membership = self._current_membership()
+        skill = serializer.validated_data["skill"]
+        tenant_id = get_current_tenant()
+        if SelfDeclaredSkill.objects.filter(membership=membership, skill=skill).exists():
+            raise ValidationError("You have already declared this skill.")
+        declaration = serializer.save(membership=membership, tenant_id=tenant_id)
+        audit.record(
+            actor=self.request.user,
+            action="skill.declare",
+            resource=declaration,
+            tenant_id=tenant_id,
+            skill_id=str(skill.id),
+        )
+
+    def perform_destroy(self, instance: SelfDeclaredSkill) -> None:
+        audit.record(
+            actor=self.request.user,
+            action="skill.declare.remove",
+            resource=instance,
+            tenant_id=instance.tenant_id,
+            skill_id=str(instance.skill_id),
+        )
+        instance.delete()
