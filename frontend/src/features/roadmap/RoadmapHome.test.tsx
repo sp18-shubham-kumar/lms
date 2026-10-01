@@ -40,7 +40,7 @@ beforeEach(() => {
   }) as never)
 })
 
-test('learner without jobprofile.edit sees guidance, not a picker', () => {
+test('member without directory.view sees guidance, not a picker', () => {
   mockAuth(false)
   render(wrap(<RoadmapHome />))
   expect(screen.getByText(/target grade hasn’t been shared/i)).toBeInTheDocument()

@@ -10,3 +10,26 @@ export interface ReadinessSnapshot {
   computed_at: string
   display_name: string
 }
+
+/** Org unit (GET /api/identity/org-units/). */
+export interface OrgUnit {
+  id: string
+  name: string
+  path: string
+  parent: string | null
+}
+
+/** Heatmap grid (GET /api/profiles/heatmap/). */
+export interface HeatmapColumn {
+  skill_id: string
+  skill_name: string
+}
+export interface HeatmapRow {
+  membership_id: string
+  display_name: string
+  cells: Array<{ met: boolean }>
+}
+export interface Heatmap {
+  columns: HeatmapColumn[]
+  rows: HeatmapRow[]
+}

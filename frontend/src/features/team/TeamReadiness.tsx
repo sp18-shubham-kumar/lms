@@ -1,10 +1,8 @@
 /**
- * Manager view: team readiness across the tenant (GET /profiles/readiness/).
- *
- * The members × skills heatmap (GET /profiles/heatmap/) is intentionally not
- * wired yet: it requires an `org_unit` UUID and the backend exposes no endpoint
- * to list org units, so a pure SPA can't obtain one. Flagged to the team.
+ * Manager view: team readiness across the tenant (GET /profiles/readiness/),
+ * plus the members × skills heatmap (GET /profiles/heatmap/).
  */
+import { TeamHeatmap } from './TeamHeatmap'
 import { useTeamReadiness } from './api'
 
 export function TeamReadiness() {
@@ -49,11 +47,7 @@ export function TeamReadiness() {
         </ul>
       )}
 
-      <div className="mt-6 rounded-lg border border-dashed border-brand-200 bg-brand-50 p-4 text-[12.5px] text-ink-soft">
-        <span className="font-semibold text-ink">Heatmap — pending backend.</span> The members ×
-        skills heatmap needs an <code>org_unit</code> id; there’s no endpoint to list org units
-        yet, so it can’t be wired from the SPA. Tracked as a backend gap.
-      </div>
+      <TeamHeatmap />
     </section>
   )
 }

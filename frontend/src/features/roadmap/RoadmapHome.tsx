@@ -48,7 +48,8 @@ function toSteps(readiness: Readiness): RoadmapStep[] {
 
 export function RoadmapHome() {
   const { hasCapability } = useAuth()
-  const canPickTarget = hasCapability('jobprofile.edit')
+  // Any directory viewer can browse the career ladder and pick a target grade.
+  const canPickTarget = hasCapability('directory.view')
 
   const profiles = useJobProfiles(canPickTarget)
   const [target, setTarget] = useState<string | null>(null)
