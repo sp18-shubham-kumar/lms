@@ -33,6 +33,16 @@ class TenantSummarySerializer(serializers.ModelSerializer):
         fields = ["id", "name", "slug", "accent_color", "logo_url"]
 
 
+class InvitationCreateSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    role = serializers.CharField(required=False, allow_blank=True, default="", max_length=100)
+
+
+class InvitationAcceptSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+
 class PersonDirectorySerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(source="person.id")
     email = serializers.EmailField(source="person.email")

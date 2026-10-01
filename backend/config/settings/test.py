@@ -10,3 +10,6 @@ SECRET_KEY = "test-insecure-key-not-for-production-0123456789abcdef"
 
 # Speed up password hashing in tests.
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+# Capture invitation mail instead of printing it.
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"

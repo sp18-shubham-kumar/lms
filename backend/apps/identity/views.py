@@ -6,6 +6,7 @@ from django.contrib.auth import authenticate
 from django.db.models import Q
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.generics import ListAPIView
 from rest_framework.parsers import BaseParser
@@ -14,9 +15,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.identity import import_service
-from apps.identity.models import Membership, OrgUnit, Tenant
+from apps.identity import import_service, invitation_service
+from apps.identity.invitation_service import InvitationError
+from apps.identity.models import Invitation, Membership, OrgUnit, Tenant
 from apps.identity.serializers import (
+    InvitationAcceptSerializer,
+    InvitationCreateSerializer,
     LoginSerializer,
     MembershipSummarySerializer,
     PersonDirectorySerializer,
@@ -27,6 +31,7 @@ from apps.skills.models import SelfDeclaredSkill
 from core import audit
 from core.context import get_current_tenant
 from core.idempotency import idempotent
+from core.pagination import DefaultPagination
 from core.permissions import HasCapability, capabilities_for
 
 
@@ -227,3 +232,83 @@ class MemberImportView(APIView):
 
         # Commit is idempotent: a retry with the same Idempotency-Key replays the result.
         return idempotent(request, tenant_id, _apply)
+
+
+def _invitation_error(exc: InvitationError) -> Response:
+    return Response({"detail": exc.detail}, status=exc.status_code)
+
+
+class InvitationListCreateView(APIView):
+    """List and create pending email invitations. Gated by member.invite."""
+
+    permission_classes = [*APIView.permission_classes, HasCapability]
+    required_capability = "member.invite"
+    pagination_class = DefaultPagination
+
+    @extend_schema(
+        summary="List pending invitations",
+        description="Pending email invitations for the active tenant.",
+        tags=["Identity"],
+    )
+    def get(self, request: Any) -> Response:
+        queryset = (
+            Invitation.objects.filter(status=Invitation.Status.PENDING)
+            .select_related("role")
+            .order_by("-created_at")
+        )
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        rows = page if page is not None else queryset
+        data = [invitation_service.to_payload(row) for row in rows]
+        if page is not None:
+            return paginator.get_paginated_response(data)
+        return Response(data)
+
+    @extend_schema(
+        summary="Invite a member by email",
+        description=(
+            "Create a pending invitation and email a one-time accept link. "
+            "Only the token hash is stored. Requires member.invite."
+        ),
+        tags=["Identity"],
+        request=InvitationCreateSerializer,
+    )
+    def post(self, request: Any) -> Response:
+        serializer = InvitationCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            payload = invitation_service.create_invitation(
+                email=serializer.validated_data["email"],
+                role_name=serializer.validated_data["role"],
+                actor=request.user,
+                tenant_id=get_current_tenant(),
+            )
+        except InvitationError as exc:
+            return _invitation_error(exc)
+        return Response(payload, status=status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    summary="Accept an email invitation",
+    description=(
+        "Public. Set a password from the emailed token, creating the person and "
+        "membership when needed. The token is single-use."
+    ),
+    tags=["Auth"],
+    request=InvitationAcceptSerializer,
+)
+class InvitationAcceptView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes: list[Any] = []
+
+    def post(self, request: Any) -> Response:
+        serializer = InvitationAcceptSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            payload = invitation_service.accept_invitation(
+                raw_token=serializer.validated_data["token"],
+                password=serializer.validated_data["password"],
+            )
+        except InvitationError as exc:
+            return _invitation_error(exc)
+        return Response(payload)

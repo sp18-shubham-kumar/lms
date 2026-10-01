@@ -6,6 +6,7 @@ Planned tables (see docs/specs/data-model.md and docs/specs/phase-1.md):
 - Person        — global identity, not owned by a tenant (email UNIQUE).
 - OrgUnit       — tenant org hierarchy (materialised path for subtree scope).
 - Membership    — links a Person to a Tenant (role, org unit, grade); one per pair.
+- Invitation   — a pending email invite; only the token hash is stored.
 - IdentityProvider — per-tenant OIDC config.
 
 Conventions:
@@ -108,6 +109,39 @@ class Membership(TenantScopedModel):
                 fields=["person", "tenant"], name="uniq_membership_person_tenant"
             )
         ]
+
+
+class Invitation(TenantScopedModel):
+    """A pending email invite. The raw token is mailed once; only its hash is stored."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "pending"
+        ACCEPTED = "accepted", "accepted"
+
+    email = models.EmailField()
+    token_hash = models.CharField(max_length=64, unique=True)
+    # Present on the existing table and required. Set at create; accept uses token_hash.
+    onboarding_token_hash = models.CharField(max_length=64)
+    role = models.ForeignKey(
+        "authz.Role",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="invitations",
+    )
+    expires_at = models.DateTimeField()
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="sent_invitations",
+    )
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self) -> str:
+        return f"{self.email} ({self.status})"
 
 
 class IdentityProvider(TenantScopedModel):
