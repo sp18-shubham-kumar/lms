@@ -10,6 +10,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from corsheaders.defaults import default_headers
 
 # backend/config/settings/base.py -> backend/
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -120,13 +121,19 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Custom user model — a Person is the global identity (see docs/specs/data-model.md).
+AUTH_USER_MODEL = "identity.Person"
+
 # --- DRF --------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     # Deny by default: every endpoint requires auth unless it opts out.
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+        "core.permissions.IsActiveTenantMember",
+    ),
     "DEFAULT_PAGINATION_CLASS": "core.pagination.DefaultPagination",
     "PAGE_SIZE": 25,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -149,6 +156,9 @@ SPECTACULAR_SETTINGS = {
 
 # --- CORS -------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
+# The SPA sends the active tenant in a custom header (see TENANT_HEADER); it must be
+# allowed through the CORS preflight or browsers block every tenant-scoped request.
+CORS_ALLOW_HEADERS = (*default_headers, "x-tenant-id")
 
 # --- Tenant resolution ------------------------------------------------------
 # Header the frontend sends to select the active tenant until subdomain-based

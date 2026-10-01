@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import uuid
 
+from django.conf import settings
 from django.db import models
 
 from core.managers import TenantScopedManager
@@ -59,3 +60,32 @@ class TenantScopedModel(UUIDModel, TimeStampedModel):
 
     class Meta:
         abstract = True
+
+
+class AuditLog(UUIDModel, TimeStampedModel):
+    """Append-only audit trail. NOT tenant-scoped — records cross-context events."""
+
+    tenant = models.ForeignKey(
+        "identity.Tenant",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    action = models.CharField(max_length=100)
+    resource_type = models.CharField(max_length=100, blank=True, default="")
+    resource_id = models.UUIDField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"AuditLog({self.action})"
