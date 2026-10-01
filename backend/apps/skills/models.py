@@ -26,6 +26,8 @@ Self-declared (Phase 1) and verified assertions (Phase 2) stay separate records.
 
 from __future__ import annotations
 
+from django.contrib.postgres.fields import ArrayField
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from core.context import get_current_tenant
@@ -110,6 +112,59 @@ class Skill(GlobalOrTenantModel):
 
     def __str__(self) -> str:
         return self.name
+
+
+class SkillLevel(UUIDModel, TimeStampedModel):
+    """
+    A rung of a skill's rubric (levels 1..5). NOT tenant-scoped — it belongs to a
+    skill (which is itself global-or-tenant), so visibility follows the skill.
+
+    ``indicators`` describe what the level looks like; ``evidence_kinds`` are the
+    accepted proof types (escalating with level — L1 quiz → L5 panel).
+    """
+
+    skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="levels")
+    level = models.SmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    title = models.CharField(max_length=255, blank=True, default="")
+    indicators = ArrayField(models.TextField(), default=list, blank=True)
+    evidence_kinds = ArrayField(models.TextField(), default=list, blank=True)
+    min_verifier_level = models.SmallIntegerField(null=True, blank=True)
+    validity_months = models.SmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["skill", "level"]
+        constraints = [models.UniqueConstraint(fields=["skill", "level"], name="uniq_skill_level")]
+
+    def __str__(self) -> str:
+        return f"SkillLevel({self.skill_id}, L{self.level})"
+
+
+class SkillEdge(GlobalOrTenantModel):
+    """
+    A relation between two skills: a ``prerequisite`` (must-stay-acyclic) or an
+    ``adjacent`` (advisory) link. ``tenant`` NULL = a global edge.
+    """
+
+    KIND_CHOICES = [
+        ("prerequisite", "prerequisite"),
+        ("adjacent", "adjacent"),
+    ]
+
+    from_skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="edges_out")
+    to_skill = models.ForeignKey(Skill, on_delete=models.CASCADE, related_name="edges_in")
+    kind = models.CharField(max_length=16, choices=KIND_CHOICES)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["from_skill", "to_skill", "kind"], name="uniq_skill_edge"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"SkillEdge({self.from_skill_id} -{self.kind}-> {self.to_skill_id})"
 
 
 class SelfDeclaredSkill(TenantScopedModel):
