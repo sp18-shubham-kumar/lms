@@ -274,6 +274,23 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         )
         return Response(TenantSkillOverrideSerializer(override).data)
 
+    @extend_schema(
+        summary="Publish a skill",
+        description=(
+            "Transition a draft tenant skill to published. Global skills are read-only "
+            "to tenants. Requires taxonomy.edit. Audited."
+        ),
+        request=None,
+        responses=SkillSerializer,
+        tags=["Skills"],
+    )
+    @action(detail=True, methods=["post"])
+    def publish(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        skill = self.get_object()
+        self._reject_global(skill)
+        published = services.publish_skill(skill, request.user)
+        return Response(self.get_serializer(published).data)
+
 
 @extend_schema_view(
     list=extend_schema(summary="List my skill declarations", tags=["Skills"]),

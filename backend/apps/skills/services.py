@@ -10,8 +10,9 @@ from __future__ import annotations
 from typing import Any
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
-from apps.skills.models import Skill, SkillEdge, TenantSkillOverride
+from apps.skills.models import Skill, SkillEdge, SkillLevel, TenantSkillOverride
 from core import audit
 
 
@@ -31,6 +32,72 @@ def retire_skill(skill: Skill, actor: Any) -> Skill:
         skill_id=str(skill.id),
     )
     return skill
+
+
+def publish_skill(skill: Skill, actor: Any) -> Skill:
+    """
+    Transition a draft skill to ``published``. Audited. Idempotent in effect (a skill
+    already published stays published). Caller handles capability gating + scoping.
+    """
+    skill.status = "published"
+    skill.save(update_fields=["status", "updated_at"])
+    audit.record(
+        actor=actor,
+        action="skill.publish",
+        resource=skill,
+        tenant_id=skill.tenant_id,
+        skill_id=str(skill.id),
+    )
+    return skill
+
+
+def new_version_from(skill: Skill, actor: Any) -> Skill:
+    """
+    Create and return a new **draft** version of a published skill.
+
+    The prior version row is retained immutable (assertions/requirements pin the exact
+    version they judged). The new draft copies the definition and the rubric grid; its
+    ``version`` is the next integer for that (tenant, slug). Audited.
+    """
+    with transaction.atomic():
+        next_version = (
+            Skill.objects.filter(tenant_id=skill.tenant_id, slug=skill.slug)
+            .order_by("-version")
+            .values_list("version", flat=True)
+            .first()
+            or skill.version
+        ) + 1
+        new_skill = Skill.objects.create(
+            tenant_id=skill.tenant_id,
+            domain=skill.domain,
+            name=skill.name,
+            slug=skill.slug,
+            external_code=skill.external_code,
+            description=skill.description,
+            status="draft",
+            version=next_version,
+        )
+        # Copy the rubric grid onto the new version (prior levels stay with the old row).
+        for level in SkillLevel.objects.filter(skill=skill):
+            SkillLevel.objects.create(
+                skill=new_skill,
+                level=level.level,
+                title=level.title,
+                indicators=list(level.indicators),
+                evidence_kinds=list(level.evidence_kinds),
+                min_verifier_level=level.min_verifier_level,
+                validity_months=level.validity_months,
+            )
+    audit.record(
+        actor=actor,
+        action="skill.new_version",
+        resource=new_skill,
+        tenant_id=new_skill.tenant_id,
+        skill_id=str(new_skill.id),
+        from_skill_id=str(skill.id),
+        version=next_version,
+    )
+    return new_skill
 
 
 def would_create_cycle(from_id: Any, to_id: Any) -> bool:
