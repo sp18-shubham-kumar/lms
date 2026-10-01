@@ -16,13 +16,20 @@ tenant must be in context when these are called (request path guarantees it).
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import Any
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import IntegrityError, transaction
 from rest_framework.response import Response
 
 IDEMPOTENCY_HEADER = "HTTP_IDEMPOTENCY_KEY"
+
+
+def _json_safe(body: Any) -> Any:
+    """Coerce serializer output (UUIDs, datetimes, Decimals) into JSON-native types."""
+    return json.loads(json.dumps(body, cls=DjangoJSONEncoder))
 
 
 def _key_from(request: Any) -> str | None:
@@ -57,7 +64,8 @@ def idempotent(
 
     response = response_factory()
     # Ensure DRF has rendered serializer data into a plain structure we can store.
-    body = response.data if hasattr(response, "data") else None
+    raw_body = response.data if hasattr(response, "data") else None
+    body = _json_safe(raw_body) if raw_body is not None else {}
     try:
         with transaction.atomic():
             IdempotencyRecord.objects.create(
@@ -66,7 +74,7 @@ def idempotent(
                 method=method,
                 path=path,
                 response_status=response.status_code,
-                response_body=body if body is not None else {},
+                response_body=body,
             )
     except IntegrityError:
         # A concurrent request won the unique constraint; return the stored result.
