@@ -1,19 +1,35 @@
 /**
- * Types for the skill catalogue. In the "Path" direction the catalogue reads as
- * "things you can add to your route", not a course list.
- *
- * UI-facing shapes; a `useSkills()` hook returns these once the backend lands.
+ * Types mirroring the backend skills API (snake_case fields, exact shapes).
+ * See GET /api/skills/, /api/skills/domains/, /api/skills/me/declarations/.
  */
-import type { LevelValue } from '../roadmap/types'
 
-export interface CatalogueSkill {
+export interface SkillDomain {
   id: string
+  tenant: string | null
   name: string
-  domain: string
-  /** The learner's current level, or 0 if never declared. */
-  myLevel: LevelValue
-  /** Whether this skill is already on the learner's roadmap. */
-  onRoute: boolean
-  /** Whether the target grade requires this skill. */
-  requiredForTarget: boolean
+  sort: number
 }
+
+export interface ApiSkill {
+  id: string
+  tenant: string | null
+  domain: string
+  name: string
+  slug: string
+  external_code: string
+  description: string
+  status: string
+  version: number
+}
+
+/** A self-claimed skill (the self-declared confidence tier). */
+export interface SelfDeclaration {
+  id: string
+  membership: string
+  skill: string
+  level: number
+  note: string
+}
+
+/** Human labels for the 1..5 level scale (level 0 = not declared). */
+export const LEVEL_LABELS = ['—', 'Aware', 'Working', 'Proficient', 'Expert', 'Master'] as const

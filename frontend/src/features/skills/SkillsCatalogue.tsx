@@ -1,24 +1,54 @@
 /**
- * The skill catalogue, "Path" style: a grid of skills the learner can add to
- * their route. Static fixture data for now (see fixtures.ts).
+ * The skill catalogue, wired to the API. Lists tenant + global skills grouped by
+ * domain; a learner can declare/remove their own skills (the self-claimed tier).
  */
-import { demoSkills } from './fixtures'
+import { useAuth } from '../../lib/auth'
+import { useSkillDomains, useSkills, useMyDeclarations, useDeclareSkill, useRemoveDeclaration } from './api'
 import { SkillCard } from './components/SkillCard'
 
 export function SkillsCatalogue() {
-  const skills = demoSkills
-  const onRouteCount = skills.filter((s) => s.onRoute).length
+  const { hasCapability } = useAuth()
+  const canDeclare = hasCapability('skill.claim.submit')
+
+  const skills = useSkills()
+  const domains = useSkillDomains()
+  const declarations = useMyDeclarations()
+  const declare = useDeclareSkill()
+  const remove = useRemoveDeclaration()
+
+  if (skills.isLoading || domains.isLoading) {
+    return <p className="text-ink-soft">Loading skills…</p>
+  }
+  if (skills.isError) {
+    return <p className="text-ink-soft">Could not load the skill catalogue.</p>
+  }
+
+  const domainName = new Map((domains.data ?? []).map((d) => [d.id, d.name]))
+  const myLevel = new Map((declarations.data ?? []).map((d) => [d.skill, d]))
+  const declaredCount = declarations.data?.length ?? 0
+  const busy = declare.isPending || remove.isPending
 
   return (
     <section className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold tracking-tight text-ink">Skills</h1>
       <p className="mt-1 text-sm text-ink-soft">
-        Browse the catalogue and add skills to your route. {onRouteCount} already on your path.
+        {canDeclare
+          ? `Browse the catalogue and declare your skills. ${declaredCount} declared.`
+          : 'Browse the skill catalogue.'}
       </p>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        {skills.map((skill) => (
-          <SkillCard key={skill.id} skill={skill} />
+        {(skills.data ?? []).map((skill) => (
+          <SkillCard
+            key={skill.id}
+            skill={skill}
+            domainName={domainName.get(skill.domain) ?? '—'}
+            declaration={myLevel.get(skill.id)}
+            canDeclare={canDeclare}
+            busy={busy}
+            onDeclare={(level) => declare.mutate({ skill: skill.id, level })}
+            onRemove={(id) => remove.mutate(id)}
+          />
         ))}
       </div>
     </section>
