@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from drf_spectacular.utils import extend_schema
+from django.db import transaction
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import mixins, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.authz.models import Role, RoleGrant
-from apps.authz.serializers import RoleGrantSerializer, RoleSerializer
+from apps.authz.models import Capability, Role, RoleCapability, RoleGrant
+from apps.authz.serializers import RoleGrantSerializer, RoleSerializer, RoleWriteSerializer
 from core import audit
 from core.context import get_current_tenant
 from core.idempotency import IdempotentCreateMixin
@@ -18,21 +20,137 @@ INVITE_CAPABILITY = "member.invite"
 OFFBOARD_CAPABILITY = "member.offboard"
 
 
-@extend_schema(
-    summary="List roles and their capabilities",
-    description="Roles defined in the active tenant with their granted capability keys.",
-    tags=["Authz"],
+def _replace_capabilities(role: Role, keys: list[str], tenant_id: Any) -> None:
+    """Replace a role's capability set. Unknown keys are rejected before any write."""
+    unique = list(dict.fromkeys(keys))
+    known = set(Capability.objects.filter(key__in=unique).values_list("key", flat=True))
+    missing = [key for key in unique if key not in known]
+    if missing:
+        raise ValidationError({"capabilities": [f"Unknown capability: {key}" for key in missing]})
+    current = RoleCapability.objects.filter(role=role)
+    if not unique:
+        current.delete()
+        return
+    current.exclude(capability_id__in=unique).delete()
+    have = set(current.values_list("capability_id", flat=True))
+    for key in unique:
+        if key not in have:
+            RoleCapability.objects.create(tenant_id=tenant_id, role=role, capability_id=key)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List roles and their capabilities",
+        description="Roles defined in the active tenant with their granted capability keys.",
+        tags=["Authz"],
+    ),
+    retrieve=extend_schema(summary="Retrieve a role", tags=["Authz"]),
+    create=extend_schema(
+        summary="Create a role",
+        description=(
+            "Create a role in the active tenant and attach existing capability keys. "
+            "Gated by member.invite."
+        ),
+        tags=["Authz"],
+        request=RoleWriteSerializer,
+        responses=RoleSerializer,
+    ),
+    partial_update=extend_schema(
+        summary="Update a role",
+        description="Update the name and/or replace the capability keys. Gated by member.invite.",
+        tags=["Authz"],
+        request=RoleWriteSerializer,
+        responses=RoleSerializer,
+    ),
+    destroy=extend_schema(
+        summary="Delete a role with no grants",
+        description="Deletes the role only when no role grant still uses it. Gated by member.invite.",
+        tags=["Authz"],
+    ),
 )
-class RoleViewSet(viewsets.ReadOnlyModelViewSet):
-    """Read-only list of the tenant's roles + capability keys. Gated by member.invite."""
+class RoleViewSet(
+    IdempotentCreateMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Tenant roles and their capability keys. Writes are gated by member.invite."""
 
     serializer_class = RoleSerializer
     permission_classes = [*APIView.permission_classes, HasCapability]
     required_capability = INVITE_CAPABILITY
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self) -> Any:
         # Role.objects is tenant-scoped (fails closed with no tenant in context).
         return Role.objects.prefetch_related("capabilities").order_by("name")
+
+    def get_serializer_class(self) -> type[RoleSerializer] | type[RoleWriteSerializer]:
+        if self.action in {"create", "partial_update"}:
+            return RoleWriteSerializer
+        return RoleSerializer
+
+    @transaction.atomic
+    def _create_role(self, request: Any) -> Response:
+        serializer = RoleWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        tenant_id = get_current_tenant()
+        name = serializer.validated_data["name"]
+        if Role.objects.filter(name=name).exists():
+            raise ValidationError({"name": "A role with this name already exists."})
+        role = Role.objects.create(tenant_id=tenant_id, name=name, is_system=False)
+        _replace_capabilities(role, serializer.validated_data["capabilities"], tenant_id)
+        audit.record(
+            actor=request.user,
+            action="role.create",
+            resource=role,
+            tenant_id=tenant_id,
+            name=name,
+        )
+        return Response(RoleSerializer(role).data, status=201)
+
+    def create(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        return self.idempotent_create(request, lambda: self._create_role(request))
+
+    @transaction.atomic
+    def partial_update(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        role = self.get_object()
+        serializer = RoleWriteSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        tenant_id = get_current_tenant()
+        data = serializer.validated_data
+        if "name" in data and data["name"] != role.name:
+            if Role.objects.filter(name=data["name"]).exclude(id=role.id).exists():
+                raise ValidationError({"name": "A role with this name already exists."})
+            role.name = data["name"]
+            role.save(update_fields=["name", "updated_at"])
+        if "capabilities" in data:
+            _replace_capabilities(role, data["capabilities"], tenant_id)
+        audit.record(
+            actor=request.user,
+            action="role.update",
+            resource=role,
+            tenant_id=tenant_id,
+            name=role.name,
+        )
+        return Response(RoleSerializer(role).data)
+
+    def destroy(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        role = self.get_object()
+        if role.grants.exists():
+            raise ValidationError("This role is still granted and cannot be deleted.")
+        audit.record(
+            actor=request.user,
+            action="role.delete",
+            resource=role,
+            tenant_id=role.tenant_id,
+            name=role.name,
+        )
+        role.delete()
+        return Response(status=204)
 
 
 @extend_schema(tags=["Authz"])

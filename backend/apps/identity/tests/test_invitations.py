@@ -66,10 +66,16 @@ def test_invite_emails_a_link_and_stores_only_the_hash():
     body = resp.json()
     assert body["email"] == "new@acme.test"
     assert body["role"] == "Learner"
-    assert "token" not in body
+    raw = body["token"]
+    assert raw == _token_from_mail()
+    assert (
+        "token"
+        not in client.get(
+            "/api/identity/invitations/", **_auth(client, "admin@acme.test", tenant)
+        ).json()["results"][0]
+    )
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == ["new@acme.test"]
-    raw = _token_from_mail()
     invitation = Invitation.all_tenants.get(email="new@acme.test")
     assert invitation.token_hash == hash_token(raw)
     assert invitation.token_hash != raw

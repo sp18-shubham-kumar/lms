@@ -1,4 +1,4 @@
-"""Routes for the authz app (role list + grant management)."""
+"""Routes for the authz app (role management + grant management)."""
 
 from rest_framework.routers import DefaultRouter
 

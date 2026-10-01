@@ -4,10 +4,12 @@ Member CSV import — dry-run diff + commit.
 CSV columns: ``email,display_name,org_unit_path,role,employee_ref``.
 
 ``build_diff`` parses the rows and classifies each as an *add* (no membership for
-that email in the tenant yet), an *update* (membership exists; display_name /
-org_unit / employee_ref may change), or an *error* (missing email, unknown role,
-unknown org unit). It writes nothing. ``apply_diff`` performs the adds/updates
-inside a single transaction and audits once.
+that email in the tenant yet), an *update* (membership exists), or an *error*
+(missing email, missing role on a new email, unknown role, unknown org unit, or
+an invitation already pending). It writes nothing. ``apply_diff`` invites each
+add with the same pending invitation a member invite uses, and updates an
+existing member's org unit and employee ref. New emails do not get a membership
+or a usable password until they accept.
 
 All reads/writes are tenant-scoped via ``Model.objects`` (the caller runs inside
 the active tenant's context, guaranteed by the request path).
@@ -23,8 +25,9 @@ from typing import Any
 from django.contrib.auth import get_user_model
 from django.db import transaction
 
-from apps.authz.models import Role, RoleGrant
-from apps.identity.models import Membership, OrgUnit
+from apps.authz.models import Role
+from apps.identity.invitation_service import InvitationError, create_invitation
+from apps.identity.models import Invitation, Membership, OrgUnit
 
 # CSV columns consumed by the importer: email,display_name,org_unit_path,role,employee_ref
 
@@ -84,50 +87,63 @@ def build_diff(raw: str, tenant_id: Any) -> ImportDiff:
         has_membership = person is not None and Membership.objects.filter(person=person).exists()
         if has_membership:
             diff.updates.append(entry)
-        else:
-            diff.adds.append(entry)
+            continue
+
+        if not role_name:
+            diff.errors.append({"row": index, "reason": "missing role"})
+            continue
+        if Invitation.objects.filter(email=email, status=Invitation.Status.PENDING).exists():
+            diff.errors.append(
+                {"row": index, "reason": "An invitation is already pending for this email."}
+            )
+            continue
+        diff.adds.append(entry)
 
     return diff
 
 
 @transaction.atomic
 def apply_diff(diff: ImportDiff, tenant_id: Any, actor: Any) -> dict[str, Any]:
-    """Apply adds + updates inside one transaction and audit once."""
+    """Invite new emails and update existing members' org unit and employee ref."""
     from core import audit
 
     person_model = get_user_model()
-    roles_by_name = {r.name: r for r in Role.objects.all()}
     units_by_path = {u.path: u for u in OrgUnit.objects.all() if u.path}
 
-    for entry in [*diff.adds, *diff.updates]:
-        person = person_model.objects.filter(email=entry["email"]).first()
-        if person is None:
-            person = person_model.objects.create_user(
+    invited: list[dict[str, Any]] = []
+    for entry in diff.adds:
+        if not entry["role"]:
+            diff.errors.append({"row": entry["row"], "reason": "missing role"})
+            continue
+        try:
+            create_invitation(
                 email=entry["email"],
-                display_name=entry["display_name"] or entry["email"],
-            )
-            person.set_unusable_password()
-            person.save(update_fields=["password"])
-
-        org_unit = units_by_path.get(entry["org_unit_path"]) if entry["org_unit_path"] else None
-        membership, _ = Membership.objects.update_or_create(
-            person=person,
-            tenant_id=tenant_id,
-            defaults={
-                "status": "active",
-                "employee_ref": entry["employee_ref"],
-                "org_unit": org_unit,
-            },
-        )
-
-        role = roles_by_name.get(entry["role"]) if entry["role"] else None
-        if role is not None:
-            RoleGrant.objects.get_or_create(
+                role_name=entry["role"],
+                actor=actor,
                 tenant_id=tenant_id,
-                principal_type="person",
-                principal_id=person.id,
-                role=role,
             )
+        except InvitationError as exc:
+            diff.errors.append({"row": entry["row"], "reason": exc.detail})
+            continue
+        entry["invited"] = True
+        invited.append(entry)
+    diff.adds = invited
+
+    updated: list[dict[str, Any]] = []
+    for entry in diff.updates:
+        person = person_model.objects.filter(email=entry["email"]).first()
+        membership = (
+            Membership.objects.filter(person=person).first() if person is not None else None
+        )
+        if membership is None:
+            diff.errors.append({"row": entry["row"], "reason": "member not found"})
+            continue
+        org_unit = units_by_path.get(entry["org_unit_path"]) if entry["org_unit_path"] else None
+        membership.employee_ref = entry["employee_ref"]
+        membership.org_unit = org_unit
+        membership.save(update_fields=["employee_ref", "org_unit", "updated_at"])
+        updated.append(entry)
+    diff.updates = updated
 
     audit.record(
         actor=actor,

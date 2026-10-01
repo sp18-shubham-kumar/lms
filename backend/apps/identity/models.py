@@ -75,6 +75,7 @@ class Tenant(UUIDModel, TimeStampedModel):
     plan = models.CharField(max_length=32, default="free")
     accent_color = models.CharField(max_length=9, blank=True, default="")
     logo_url = models.URLField(blank=True, default="")
+    description = models.TextField(blank=True, default="")
 
     def __str__(self) -> str:
         return self.name
@@ -115,13 +116,11 @@ class Invitation(TenantScopedModel):
     """A pending email invite. The raw token is mailed once; only its hash is stored."""
 
     class Status(models.TextChoices):
-        PENDING = "pending", "pending"
-        ACCEPTED = "accepted", "accepted"
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        CANCELLED = "cancelled", "Cancelled"
 
     email = models.EmailField()
-    token_hash = models.CharField(max_length=64, unique=True)
-    # Present on the existing table and required. Set at create; accept uses token_hash.
-    onboarding_token_hash = models.CharField(max_length=64)
     role = models.ForeignKey(
         "authz.Role",
         null=True,
@@ -129,8 +128,12 @@ class Invitation(TenantScopedModel):
         on_delete=models.SET_NULL,
         related_name="invitations",
     )
-    expires_at = models.DateTimeField()
+    token_hash = models.CharField(max_length=64, unique=True)
+    # Present on the existing table. Accept uses token_hash; this stays empty until used.
+    onboarding_token_hash = models.CharField(max_length=64, blank=True, default="")
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
     invited_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -138,10 +141,23 @@ class Invitation(TenantScopedModel):
         on_delete=models.SET_NULL,
         related_name="sent_invitations",
     )
-    accepted_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self) -> str:
         return f"{self.email} ({self.status})"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "email"],
+                condition=models.Q(status="pending"),
+                name="uniq_pending_invitation_tenant_email",
+            ),
+            models.UniqueConstraint(
+                fields=["onboarding_token_hash"],
+                condition=~models.Q(onboarding_token_hash=""),
+                name="uniq_invitation_onboarding_token_hash",
+            ),
+        ]
 
 
 class IdentityProvider(TenantScopedModel):

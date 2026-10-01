@@ -18,7 +18,11 @@ def test_schema_is_200_and_includes_part_a_paths():
         "/api/identity/members/import/",
         "/api/identity/people/",
         "/api/identity/invitations/",
+        "/api/identity/invitations/{id}/",
+        "/api/identity/invitations/{id}/resend/",
+        "/api/identity/org-units/",
         "/api/auth/invitations/accept/",
+        "/api/platform/tenants/",
     ]
     for path in expected:
         assert path in paths, f"{path} missing from schema"
