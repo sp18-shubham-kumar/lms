@@ -1,0 +1,755 @@
+<title>Skills LMS — Frontend UI Directions</title>
+<style>
+  :root {
+    --paper: #f7f8fa;
+    --panel: #ffffff;
+    --ink: #16181d;
+    --ink-2: #3b4048;
+    --muted: #6b7280;
+    --faint: #9aa1ac;
+    --rule: #e4e7ec;
+    --rule-2: #eef0f3;
+    --mark: #b45309;      /* page wayfinding accent — restrained ochre, used only in eyebrows/IDs */
+    --mark-soft: #fbf3e6;
+    --shadow: 0 1px 2px rgba(16,18,29,.04), 0 8px 24px -12px rgba(16,18,29,.12);
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", "Menlo", "Consolas", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+
+  .wrap {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell { max-width: 1140px; margin: 0 auto; padding: 0 28px; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--mark);
+    font-weight: 600;
+  }
+
+  a { color: inherit; }
+
+  /* ---------- Masthead ---------- */
+  .masthead { border-bottom: 1px solid var(--rule); background: var(--panel); }
+  .masthead .shell { padding-top: 42px; padding-bottom: 40px; }
+  .mast-top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 18px; flex-wrap: wrap; margin-bottom: 30px;
+  }
+  .mast-top .who { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+  h1 {
+    font-size: clamp(30px, 4.6vw, 50px);
+    line-height: 1.02;
+    letter-spacing: -.022em;
+    font-weight: 680;
+    margin: 12px 0 0;
+    max-width: 16ch;
+    text-wrap: balance;
+  }
+  .lede {
+    margin: 20px 0 0;
+    font-size: 17px;
+    color: var(--ink-2);
+    max-width: 64ch;
+  }
+  .lede strong { color: var(--ink); font-weight: 640; }
+
+  .meta-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--rule); border: 1px solid var(--rule);
+    border-radius: 10px; overflow: hidden; margin-top: 32px;
+  }
+  .meta-strip .cell { background: var(--panel); padding: 14px 16px; }
+  .meta-strip .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  .meta-strip .v { font-size: 14px; margin-top: 4px; color: var(--ink); font-weight: 560; }
+  .meta-strip .v.sub { font-weight: 460; color: var(--ink-2); font-size: 13px; }
+
+  /* ---------- Sections ---------- */
+  section { padding: 56px 0; border-bottom: 1px solid var(--rule); }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .sec-head h2 { font-size: 15px; font-weight: 640; letter-spacing: -.01em; margin: 0; }
+  .sec-intro { color: var(--muted); max-width: 66ch; margin: 6px 0 0; font-size: 15px; }
+
+  /* ---------- Compare table ---------- */
+  .table-scroll { overflow-x: auto; margin-top: 26px; border: 1px solid var(--rule); border-radius: 12px; background: var(--panel); }
+  table.compare { width: 100%; border-collapse: collapse; min-width: 720px; font-size: 13.5px; }
+  table.compare th, table.compare td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--rule-2); vertical-align: top; }
+  table.compare thead th {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; background: #fbfbfc;
+    position: sticky; top: 0;
+  }
+  table.compare tbody tr:last-child td { border-bottom: none; }
+  table.compare .id { font-family: var(--mono); color: var(--mark); font-weight: 600; }
+  table.compare .nm { font-weight: 640; color: var(--ink); white-space: nowrap; }
+  table.compare .nm small { display: block; font-weight: 440; color: var(--muted); font-family: var(--mono); font-size: 11px; margin-top: 2px; white-space: nowrap; }
+  .eff { font-family: var(--mono); font-size: 11px; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--rule); white-space: nowrap; }
+  .eff.low  { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
+  .eff.med  { color: #b45309; border-color: #fde68a; background: #fffbeb; }
+  .eff.high { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+
+  /* ---------- Direction blocks ---------- */
+  .dir { padding: 60px 0; border-bottom: 1px solid var(--rule); }
+  .dir-grid { display: grid; grid-template-columns: 300px 1fr; gap: 44px; align-items: start; }
+  @media (max-width: 900px) { .dir-grid { grid-template-columns: 1fr; gap: 30px; } }
+
+  .dir-meta { position: sticky; top: 20px; }
+  .dir-id { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: var(--faint); }
+  .dir-name { font-size: 30px; font-weight: 700; letter-spacing: -.02em; margin: 6px 0 2px; display: flex; align-items: center; gap: 11px; }
+  .swatch { width: 15px; height: 15px; border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); flex: none; }
+  .dir-tag { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); letter-spacing: .02em; }
+  .thesis { margin: 16px 0 0; font-size: 15.5px; color: var(--ink-2); }
+  .thesis strong { color: var(--ink); font-weight: 620; }
+
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
+  .badge { font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); background: #f1f3f6; border: 1px solid var(--rule); padding: 3px 8px; border-radius: 6px; }
+
+  .rationale { margin-top: 22px; display: grid; gap: 14px; }
+  .rat { }
+  .rat .lab { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 5px; }
+  .rat.good .lab { color: #15803d; }
+  .rat.warn .lab { color: #b45309; }
+  .rat.when .lab { color: var(--muted); }
+  .rat ul { margin: 0; padding-left: 16px; font-size: 13.5px; color: var(--ink-2); }
+  .rat ul li { margin: 3px 0; }
+  .rat p { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+
+  .dir-canvas { display: grid; gap: 22px; }
+  .cap { font-family: var(--mono); font-size: 11px; color: var(--faint); letter-spacing: .04em; margin: 0 0 -8px 2px; }
+  .cap b { color: var(--muted); font-weight: 600; }
+
+  /* ========================================================= */
+  /*  SCREEN FRAME  — shared browser chrome, palette via vars   */
+  /* ========================================================= */
+  .screen {
+    --s-bg: #fff; --s-surface: #fff; --s-border: #e5e7eb; --s-ink: #111827;
+    --s-muted: #6b7280; --s-accent: #4f46e5; --s-good: #16a34a; --s-warn: #d97706; --s-gap: #e11d48;
+    border-radius: 12px; overflow: hidden; border: 1px solid rgba(0,0,0,.10);
+    box-shadow: var(--shadow); background: var(--s-bg); color: var(--s-ink);
+    font-size: 13px;
+  }
+  .sbar { display: flex; align-items: center; gap: 8px; padding: 9px 13px; background: rgba(0,0,0,.02); border-bottom: 1px solid var(--s-border); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #d3d7dd; }
+  .dot:nth-child(2){ background:#dfe2e7 } .dot:nth-child(3){ background:#e7e9ed }
+  .sbar .url { margin-left: 8px; font-family: var(--mono); font-size: 10.5px; color: var(--s-muted); display: flex; align-items: center; gap: 7px; }
+  .tenant-chip { font-family: var(--mono); font-size: 10px; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--s-border); }
+
+  .lvl { display: inline-flex; gap: 3px; vertical-align: middle; }
+  .lvl i { width: 15px; height: 6px; border-radius: 2px; background: currentColor; opacity: .16; display: inline-block; }
+  .lvl i.on { opacity: 1; }
+  .lvl i.tgt { box-shadow: 0 0 0 1.5px var(--s-warn); opacity: .32; }
+
+  .status { font-family: var(--mono); font-size: 10px; letter-spacing: .04em; padding: 2px 7px; border-radius: 5px; white-space: nowrap; font-weight: 600; }
+  .st-met  { color: var(--s-good); background: color-mix(in srgb, var(--s-good) 12%, transparent); }
+  .st-exc  { color: var(--s-accent); background: color-mix(in srgb, var(--s-accent) 12%, transparent); }
+  .st-gap  { color: var(--s-warn); background: color-mix(in srgb, var(--s-warn) 14%, transparent); }
+  .st-none { color: var(--s-muted); background: color-mix(in srgb, var(--s-muted) 12%, transparent); }
+
+  .avatar { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 10.5px; font-weight: 700; color: #fff; flex: none; letter-spacing: .02em; }
+
+  /* ---------- footer / recommendation ---------- */
+  .rec { background: var(--ink); color: #f3f4f6; border-radius: 16px; padding: 34px 34px; margin-top: 30px; }
+  .rec .eyebrow { color: #f0c987; }
+  .rec h3 { font-size: 21px; margin: 12px 0 0; font-weight: 640; letter-spacing: -.015em; }
+  .rec p { color: #c3c7cf; font-size: 15px; max-width: 70ch; }
+  .rec .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: #2a2d35; border: 1px solid #2a2d35; border-radius: 10px; overflow: hidden; margin-top: 24px; }
+  .rec .step { background: #1c1f27; padding: 16px 18px; }
+  .rec .step .n { font-family: var(--mono); font-size: 11px; color: #f0c987; letter-spacing: .1em; }
+  .rec .step .t { font-size: 13.5px; color: #e7e9ee; margin-top: 6px; }
+
+  .pageft { padding: 30px 0 60px; color: var(--faint); font-family: var(--mono); font-size: 11.5px; letter-spacing: .03em; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .screen { transition: transform .18s ease, box-shadow .18s ease; }
+    .screen:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(16,18,29,.06), 0 20px 40px -18px rgba(16,18,29,.22); }
+  }
+</style>
+
+<div class="wrap">
+
+  <!-- ================= MASTHEAD ================= -->
+  <header class="masthead">
+    <div class="shell">
+      <div class="mast-top">
+        <span class="eyebrow">Skills LMS · Frontend Direction Review</span>
+        <span class="who">Prepared for the team · pick one to build on</span>
+      </div>
+      <h1>Four ways the Skills&nbsp;LMS could look and feel.</h1>
+      <p class="lede">
+        Vivek's <strong>PR&nbsp;#1</strong> already settled the plumbing — React&nbsp;19, Tailwind&nbsp;v4, a single
+        capability-gated shell, per-tenant accent theming, and a working People directory. What it deliberately
+        <em>doesn't</em> decide is the look and the information architecture. Below are <strong>four complete
+        directions</strong>. Each pairs a visual language with an IA bet and a persona it's built for. Every one shows
+        the <strong>same hero screen</strong> — a learner's gap toward <em>Data Engineer&nbsp;L2</em> — so you can
+        compare looks directly, then a second screen that proves its structural idea.
+      </p>
+
+      <div class="meta-strip">
+        <div class="cell"><div class="k">Locked by PR #1</div><div class="v sub">Stack, shell, tenant theming, auth</div></div>
+        <div class="cell"><div class="k">Open for decision</div><div class="v sub">Visual language + IA + persona focus</div></div>
+        <div class="cell"><div class="k">Personas</div><div class="v sub">Learner · Manager · Admin</div></div>
+        <div class="cell"><div class="k">How to use this</div><div class="v sub">Scan → vote on an ID → we build it out</div></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= COMPARE ================= -->
+  <section>
+    <div class="shell">
+      <div class="sec-head"><span class="eyebrow">At a glance</span><h2>The choice in one table</h2></div>
+      <p class="sec-intro">Read across a row to understand a direction; read down a column to weigh the tradeoff you
+      care about most. Build effort is measured against what PR&nbsp;#1 already gives us.</p>
+
+      <div class="table-scroll">
+        <table class="compare">
+          <thead>
+            <tr>
+              <th>Dir</th><th>Feels like</th><th>IA emphasis</th><th>Built for</th>
+              <th>Signature screen</th><th>Build effort</th><th>Main risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="id">01</span> <span class="nm">Clearing<small>calm enterprise</small></span></td>
+              <td>Quiet, spacious, Linear-like restraint</td>
+              <td>Gap-diff is home; one persistent rail</td>
+              <td>Everyone; learner-leaning</td>
+              <td>Learner gap-diff</td>
+              <td><span class="eff low">LOW · reuses shell</span></td>
+              <td>Can read as generic if under-invested</td>
+            </tr>
+            <tr>
+              <td><span class="id">02</span> <span class="nm">Signet<small>human-signature</small></span></td>
+              <td>Warm, credible, attestation-forward</td>
+              <td>Role switch; verifier queue is peer surface</td>
+              <td>Trust — admins &amp; verifiers</td>
+              <td>Verifier review queue</td>
+              <td><span class="eff high">HIGH · new surfaces</span></td>
+              <td>Pulls Phase-2+ scope forward early</td>
+            </tr>
+            <tr>
+              <td><span class="id">03</span> <span class="nm">Console<small>dense data-tool</small></span></td>
+              <td>Compact, dark-capable, Grafana-like</td>
+              <td>Team heatmap &amp; directory first</td>
+              <td>Managers &amp; leads at scale</td>
+              <td>Team skill heatmap</td>
+              <td><span class="eff med">MED · info-design lift</span></td>
+              <td>Density can intimidate solo learners</td>
+            </tr>
+            <tr>
+              <td><span class="id">04</span> <span class="nm">Path<small>guided roadmap</small></span></td>
+              <td>Encouraging, momentum-forward</td>
+              <td>Roadmap spine; ordered next steps</td>
+              <td>Learner adoption &amp; habit</td>
+              <td>Roadmap to target grade</td>
+              <td><span class="eff med">MED · roadmap engine</span></td>
+              <td>Manager analytics feel secondary</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= DIRECTION 01 · CLEARING ================= -->
+  <div class="dir">
+    <div class="shell">
+      <div class="dir-grid">
+        <aside class="dir-meta">
+          <div class="dir-id">01</div>
+          <div class="dir-name"><span class="swatch" style="background:#4f46e5"></span>Clearing</div>
+          <div class="dir-tag">calm enterprise · gap-diff home</div>
+          <p class="thesis">The restrained one. Slate neutrals, one indigo accent, hairline rules, room to breathe.
+            The learner lands <strong>directly on their gap</strong> — no course wall to scroll. It reuses Vivek's
+            shell almost verbatim, so it's the <strong>fastest path to a shipped Phase&nbsp;1/2</strong>.</p>
+
+          <div class="badges">
+            <span class="badge">Left rail</span><span class="badge">Whitespace</span><span class="badge">Indigo accent</span><span class="badge">Reuses shell</span>
+          </div>
+
+          <div class="rationale">
+            <div class="rat good"><div class="lab">Strengths</div>
+              <ul><li>Lowest build cost — the AppShell &amp; tokens already exist</li><li>Ages well; content carries the page, not chrome</li><li>Neutral base every persona tolerates</li></ul></div>
+            <div class="rat warn"><div class="lab">Tradeoffs</div>
+              <ul><li>Least distinctive — needs disciplined spacing to not feel plain</li><li>Doesn't advance the "signature / trust" story</li></ul></div>
+            <div class="rat when"><div class="lab">Best when</div>
+              <p>You want a demo in weeks and prefer to let Phase-2 features — not visuals — be the differentiator.</p></div>
+          </div>
+        </aside>
+
+        <div class="dir-canvas">
+          <p class="cap"><b>HERO</b> — Learner home · the gap-diff, sorted closest-to-done</p>
+          <!-- Screen: Clearing learner home -->
+          <div class="screen" style="--s-accent:#4f46e5; --s-good:#0f9d8f; --s-warn:#d97706; --s-gap:#e11d48; --s-border:#e8eaee; --s-muted:#64748b; --s-ink:#0f172a;">
+            <div class="sbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span class="url">skills.acme.io/home <span class="tenant-chip" style="border-color:#c7d2fe;color:#4f46e5">◆ Acme Data</span></span></div>
+            <div style="display:grid; grid-template-columns: 150px 1fr;">
+              <!-- sidebar -->
+              <nav style="border-right:1px solid var(--s-border); padding:14px 10px; background:#fcfcfd;">
+                <div style="display:flex;align-items:center;gap:7px;padding:0 6px 12px;font-weight:680;font-size:12.5px;">
+                  <span style="width:16px;height:16px;border-radius:4px;background:#4f46e5;display:inline-block"></span>Skills&nbsp;LMS</div>
+                <div style="display:grid;gap:2px;font-size:12px;">
+                  <span style="background:#eef0ff;color:#4338ca;font-weight:600;padding:6px 9px;border-radius:7px;">Home</span>
+                  <span style="color:#64748b;padding:6px 9px;">Directory</span>
+                  <span style="color:#64748b;padding:6px 9px;">Skills</span>
+                  <span style="color:#64748b;padding:6px 9px;">My team</span>
+                  <span style="color:#64748b;padding:6px 9px;">Admin</span>
+                </div>
+              </nav>
+              <!-- main -->
+              <div style="padding:18px 20px 22px;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+                  <div>
+                    <div style="font-size:11px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;">Targeting</div>
+                    <div style="font-size:19px;font-weight:680;letter-spacing:-.01em;margin-top:2px;">Data Engineer · L2</div>
+                    <div style="color:#64748b;font-size:12px;margin-top:2px;">Priya Nair · 4 of 6 skills at or above target</div>
+                  </div>
+                  <div style="text-align:right;min-width:130px;">
+                    <div style="font-size:11px;color:#94a3b8;font-family:var(--mono);letter-spacing:.06em;">READINESS</div>
+                    <div style="font-size:26px;font-weight:720;letter-spacing:-.02em;line-height:1;">68<span style="font-size:14px;color:#94a3b8;">%</span></div>
+                    <div style="height:6px;border-radius:99px;background:#eef0f3;margin-top:7px;overflow:hidden;">
+                      <div style="width:68%;height:100%;background:linear-gradient(90deg,#6366f1,#4f46e5);"></div></div>
+                  </div>
+                </div>
+
+                <div style="display:flex;gap:14px;font-size:10.5px;font-family:var(--mono);color:#94a3b8;margin:18px 0 8px;letter-spacing:.04em;">
+                  <span>SKILL</span><span style="margin-left:auto;display:flex;gap:26px;"><span>AWARE · WORKING · PROFICIENT · EXPERT</span><span style="width:78px;text-align:right;">STATUS</span></span></div>
+
+                <div style="display:grid;gap:1px;background:var(--s-border);border:1px solid var(--s-border);border-radius:9px;overflow:hidden;">
+                  <!-- row -->
+                  <div style="display:flex;align-items:center;gap:12px;background:#fff;padding:10px 12px;">
+                    <div style="flex:1;font-weight:560;">Data modeling</div>
+                    <div class="lvl" style="color:#4f46e5"><i class="on"></i><i class="on tgt"></i><i class="on"></i><i></i></div>
+                    <div style="width:78px;text-align:right;"><span class="status st-exc">EXCEEDS</span></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;background:#fff;padding:10px 12px;">
+                    <div style="flex:1;font-weight:560;">SQL</div>
+                    <div class="lvl" style="color:#4f46e5"><i class="on"></i><i class="on"></i><i class="on tgt"></i><i></i></div>
+                    <div style="width:78px;text-align:right;"><span class="status st-met">MET</span></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;background:#fff;padding:10px 12px;">
+                    <div style="flex:1;font-weight:560;">Airflow</div>
+                    <div class="lvl" style="color:#4f46e5"><i class="on"></i><i class="on tgt"></i><i></i><i></i></div>
+                    <div style="width:78px;text-align:right;"><span class="status st-met">MET</span></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;background:#fffdf8;padding:10px 12px;">
+                    <div style="flex:1;font-weight:560;">Python <span style="color:#94a3b8;font-weight:400;font-size:11px;">· 1 level to go</span></div>
+                    <div class="lvl" style="color:#d97706"><i class="on"></i><i class="on"></i><i class="tgt"></i><i></i></div>
+                    <div style="width:78px;text-align:right;"><span class="status st-gap">CLOSE</span></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;background:#fffdf8;padding:10px 12px;">
+                    <div style="flex:1;font-weight:560;">dbt <span style="color:#94a3b8;font-weight:400;font-size:11px;">· 1 level to go</span></div>
+                    <div class="lvl" style="color:#d97706"><i class="on"></i><i class="tgt"></i><i></i><i></i></div>
+                    <div style="width:78px;text-align:right;"><span class="status st-gap">CLOSE</span></div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px;background:#fff;padding:10px 12px;">
+                    <div style="flex:1;font-weight:560;">Kafka</div>
+                    <div class="lvl" style="color:#e11d48"><i class="tgt"></i><i></i><i></i><i></i></div>
+                    <div style="width:78px;text-align:right;"><span class="status st-none">NOT&nbsp;STARTED</span></div>
+                  </div>
+                </div>
+                <div style="margin-top:14px;display:flex;gap:8px;">
+                  <span style="font-size:12px;font-weight:600;color:#fff;background:#4f46e5;padding:7px 13px;border-radius:8px;">Start Python → Proficient</span>
+                  <span style="font-size:12px;color:#4f46e5;border:1px solid #c7d2fe;padding:7px 13px;border-radius:8px;">See full roadmap</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p class="cap"><b>PROVES ITS IA</b> — Manager's team, same calm shell, one nav away</p>
+          <div class="screen" style="--s-accent:#4f46e5; --s-border:#e8eaee; --s-muted:#64748b; --s-ink:#0f172a;">
+            <div class="sbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span class="url">skills.acme.io/my-team <span class="tenant-chip" style="border-color:#c7d2fe;color:#4f46e5">◆ Acme Data</span></span></div>
+            <div style="padding:16px 20px;">
+              <div style="font-size:14px;font-weight:680;margin-bottom:2px;">Data Platform · team readiness</div>
+              <div style="color:#64748b;font-size:12px;margin-bottom:14px;">5 people · average readiness for their target grade</div>
+              <div style="display:grid;gap:10px;">
+                <div style="display:flex;align-items:center;gap:12px;"><span class="avatar" style="background:#4f46e5">PN</span>
+                  <span style="width:130px;font-weight:560;">Priya Nair <span style="color:#94a3b8;font-weight:400;font-size:11px;">→ L2</span></span>
+                  <div style="flex:1;height:8px;border-radius:99px;background:#eef0f3;overflow:hidden;"><div style="width:68%;height:100%;background:#4f46e5;"></div></div>
+                  <span style="font-family:var(--mono);font-size:12px;width:38px;text-align:right;font-variant-numeric:tabular-nums;">68%</span></div>
+                <div style="display:flex;align-items:center;gap:12px;"><span class="avatar" style="background:#0f9d8f">AK</span>
+                  <span style="width:130px;font-weight:560;">Arjun K. <span style="color:#94a3b8;font-weight:400;font-size:11px;">→ L3</span></span>
+                  <div style="flex:1;height:8px;border-radius:99px;background:#eef0f3;overflow:hidden;"><div style="width:84%;height:100%;background:#0f9d8f;"></div></div>
+                  <span style="font-family:var(--mono);font-size:12px;width:38px;text-align:right;font-variant-numeric:tabular-nums;">84%</span></div>
+                <div style="display:flex;align-items:center;gap:12px;"><span class="avatar" style="background:#d97706">MR</span>
+                  <span style="width:130px;font-weight:560;">Meera R. <span style="color:#94a3b8;font-weight:400;font-size:11px;">→ L2</span></span>
+                  <div style="flex:1;height:8px;border-radius:99px;background:#eef0f3;overflow:hidden;"><div style="width:41%;height:100%;background:#d97706;"></div></div>
+                  <span style="font-family:var(--mono);font-size:12px;width:38px;text-align:right;font-variant-numeric:tabular-nums;">41%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DIRECTION 02 · SIGNET ================= -->
+  <div class="dir">
+    <div class="shell">
+      <div class="dir-grid">
+        <aside class="dir-meta">
+          <div class="dir-id">02</div>
+          <div class="dir-name"><span class="swatch" style="background:#1e3a5f"></span>Signet</div>
+          <div class="dir-tag">human-signature · trust-first</div>
+          <p class="thesis">Leans all the way into the repo's own thesis — <strong>a human signature is the source of
+            truth</strong>. Every skill level shows <em>who verified it</em>, and the <strong>verifier's review
+            queue is a first-class surface</strong>, not buried in admin. A role switcher puts Learner / Manager /
+            Verifier / Admin side by side.</p>
+
+          <div class="badges">
+            <span class="badge">Role switch</span><span class="badge">Verified vs self</span><span class="badge">Seal motif</span><span class="badge">Warm ink</span>
+          </div>
+
+          <div class="rationale">
+            <div class="rat good"><div class="lab">Strengths</div>
+              <ul><li>Differentiates the product — credibility is the moat</li><li>Sets up credentials &amp; endorsements cleanly for later</li><li>What earns an admin's trust to roll it out</li></ul></div>
+            <div class="rat warn"><div class="lab">Tradeoffs</div>
+              <ul><li>Verifier queue + authority is Phase-2+ work pulled early</li><li>Most surfaces to design and build of the four</li></ul></div>
+            <div class="rat when"><div class="lab">Best when</div>
+              <p>Verified capability — not self-report — is the thing the org actually needs to believe.</p></div>
+          </div>
+        </aside>
+
+        <div class="dir-canvas">
+          <p class="cap"><b>HERO</b> — Same gap, now every level carries its verifier</p>
+          <div class="screen" style="--s-bg:#f7f4ee; --s-border:#e6ded0; --s-ink:#211c14; --s-muted:#7c7263; --s-accent:#1e3a5f; --s-good:#15803d; --s-warn:#b45309; --s-gap:#b91c1c;">
+            <div class="sbar" style="background:#f1ece2;"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span class="url" style="color:#7c7263;">signet.acme.io <span class="tenant-chip" style="border-color:#cdb99a;color:#8a6d3b;background:#fbf6ec;">✦ Acme Data</span></span>
+              <span style="margin-left:auto;display:flex;gap:0;font-family:var(--mono);font-size:10px;border:1px solid #e0d6c4;border-radius:7px;overflow:hidden;">
+                <span style="padding:3px 9px;background:#1e3a5f;color:#fff;">Learner</span>
+                <span style="padding:3px 9px;color:#7c7263;">Manager</span>
+                <span style="padding:3px 9px;color:#7c7263;">Verifier</span>
+                <span style="padding:3px 9px;color:#7c7263;">Admin</span></span></div>
+            <div style="padding:18px 22px 22px;background:#faf8f3;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-size:11px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:#a99c86;">Targeting</div>
+                  <div style="font-size:19px;font-weight:700;letter-spacing:-.01em;margin-top:2px;color:#211c14;">Data Engineer · L2</div>
+                  <div style="color:#7c7263;font-size:12px;margin-top:2px;">Priya Nair · 2 verified · 2 awaiting sign-off</div>
+                </div>
+                <div style="text-align:center;">
+                  <div style="width:58px;height:58px;border-radius:50%;border:2px dashed #cdb99a;display:grid;place-items:center;color:#1e3a5f;">
+                    <div><div style="font-size:17px;font-weight:800;line-height:1;">68<span style="font-size:9px;">%</span></div>
+                    <div style="font-size:7px;font-family:var(--mono);letter-spacing:.1em;color:#a99c86;">READY</div></div></div>
+                </div>
+              </div>
+
+              <div style="display:grid;gap:8px;margin-top:16px;">
+                <div style="display:flex;align-items:center;gap:11px;background:#fff;border:1px solid #ece3d4;border-radius:9px;padding:10px 12px;">
+                  <div style="flex:1;"><span style="font-weight:600;">SQL</span>
+                    <span style="display:block;font-size:11px;color:#15803d;margin-top:2px;">◉ Verified · Anita Rao, Staff Eng · 12 Aug</span></div>
+                  <div class="lvl" style="color:#1e3a5f"><i class="on"></i><i class="on"></i><i class="on tgt"></i><i></i></div>
+                  <span class="status st-met" style="margin-left:4px;">MET</span></div>
+
+                <div style="display:flex;align-items:center;gap:11px;background:#fff;border:1px solid #ece3d4;border-radius:9px;padding:10px 12px;">
+                  <div style="flex:1;"><span style="font-weight:600;">Data modeling</span>
+                    <span style="display:block;font-size:11px;color:#15803d;margin-top:2px;">◉ Verified · Anita Rao, Staff Eng · 12 Aug</span></div>
+                  <div class="lvl" style="color:#1e3a5f"><i class="on"></i><i class="on tgt"></i><i class="on"></i><i></i></div>
+                  <span class="status st-exc" style="color:#1e3a5f;background:#e7ecf3;margin-left:4px;">EXCEEDS</span></div>
+
+                <div style="display:flex;align-items:center;gap:11px;background:#fffdf7;border:1px solid #efe1c4;border-radius:9px;padding:10px 12px;">
+                  <div style="flex:1;"><span style="font-weight:600;">Python</span>
+                    <span style="display:block;font-size:11px;color:#b45309;margin-top:2px;">◔ Self-declared · awaiting a verifier</span></div>
+                  <div class="lvl" style="color:#b45309"><i class="on"></i><i class="on"></i><i class="tgt"></i><i></i></div>
+                  <span class="status st-gap" style="margin-left:4px;">CLOSE</span></div>
+              </div>
+              <div style="margin-top:14px;"><span style="font-size:12px;font-weight:600;color:#fff;background:#1e3a5f;padding:7px 13px;border-radius:8px;">Request sign-off on Python</span></div>
+            </div>
+          </div>
+
+          <p class="cap"><b>PROVES ITS IA</b> — The verifier review queue (Vivek's "screen worth prototyping first")</p>
+          <div class="screen" style="--s-bg:#f7f4ee; --s-border:#e6ded0; --s-ink:#211c14; --s-muted:#7c7263; --s-accent:#1e3a5f; --s-good:#15803d;">
+            <div class="sbar" style="background:#f1ece2;"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span class="url" style="color:#7c7263;">signet.acme.io/verify <span class="tenant-chip" style="border-color:#cdb99a;color:#8a6d3b;background:#fbf6ec;">✦ Acme Data</span></span>
+              <span style="margin-left:auto;font-family:var(--mono);font-size:10px;color:#7c7263;">Verifier · 3 pending</span></div>
+            <div style="padding:16px 20px;background:#faf8f3;">
+              <div style="font-size:11px;font-family:var(--mono);color:#a99c86;letter-spacing:.06em;margin-bottom:10px;">SIGN-OFF QUEUE · you hold authority for Data Engineering</div>
+              <div style="display:flex;gap:14px;background:#fff;border:1px solid #ece3d4;border-radius:11px;padding:14px 15px;">
+                <div style="flex:none;width:46px;height:46px;border-radius:50%;border:2px solid #1e3a5f;color:#1e3a5f;display:grid;place-items:center;font-family:var(--mono);font-size:8px;letter-spacing:.05em;text-align:center;line-height:1.1;">SEAL<br>PEND</div>
+                <div style="flex:1;">
+                  <div style="display:flex;align-items:baseline;gap:8px;"><span style="font-weight:680;">Priya Nair</span>
+                    <span style="color:#7c7263;font-size:12px;">claims</span><span style="font-weight:640;">dbt · Working</span></div>
+                  <div style="font-size:12px;color:#7c7263;margin-top:5px;">Evidence: PR&nbsp;#204 “migrate staging models to dbt”, plus a 6-min Loom walkthrough.</div>
+                  <div style="display:flex;gap:8px;margin-top:11px;">
+                    <span style="font-size:12px;font-weight:640;color:#fff;background:#15803d;padding:6px 13px;border-radius:7px;">✓ Sign off</span>
+                    <span style="font-size:12px;font-weight:600;color:#b91c1c;border:1px solid #e7b4b4;padding:6px 13px;border-radius:7px;">Return with a note</span>
+                    <span style="font-size:12px;color:#1e3a5f;padding:6px 10px;">Open evidence</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DIRECTION 03 · CONSOLE ================= -->
+  <div class="dir">
+    <div class="shell">
+      <div class="dir-grid">
+        <aside class="dir-meta">
+          <div class="dir-id">03</div>
+          <div class="dir-name"><span class="swatch" style="background:#22b8cf"></span>Console</div>
+          <div class="dir-tag">dense data-tool · heatmap-first</div>
+          <p class="thesis">Built for the <strong>manager scanning a whole team</strong>. Compact rows, tabular
+            numerals, a dark-capable surface, and a <strong>skill heatmap as the front door</strong>. Where 01 opens
+            on one person's gap, Console opens on the shape of the <em>team's</em> capability — and lets you drill
+            into any cell.</p>
+
+          <div class="badges">
+            <span class="badge">Heatmap</span><span class="badge">Dark mode</span><span class="badge">⌘K</span><span class="badge">Tabular data</span>
+          </div>
+
+          <div class="rationale">
+            <div class="rat good"><div class="lab">Strengths</div>
+              <ul><li>Unbeatable for team &amp; org capability at a glance</li><li>Scales to many skills × many people without redesign</li><li>Feels powerful to leads — a real analysis tool</li></ul></div>
+            <div class="rat warn"><div class="lab">Tradeoffs</div>
+              <ul><li>Density can intimidate an individual learner</li><li>Needs care on the a11y floor — never colour-only status</li></ul></div>
+            <div class="rat when"><div class="lab">Best when</div>
+              <p>The champion buying in is a manager who measures team readiness, and org size is non-trivial.</p></div>
+          </div>
+        </aside>
+
+        <div class="dir-canvas">
+          <p class="cap"><b>HERO</b> — Team skill heatmap · every cell drills to a person × skill</p>
+          <div class="screen" style="--s-bg:#0d1117; --s-surface:#161b22; --s-border:#2b313b; --s-ink:#e6edf3; --s-muted:#8b949e; --s-accent:#58a6ff; --s-good:#3fb950; --s-warn:#d29922;">
+            <div class="sbar" style="background:#161b22;"><span class="dot" style="background:#3d444d"></span><span class="dot" style="background:#3d444d"></span><span class="dot" style="background:#3d444d"></span>
+              <span class="url" style="color:#8b949e;">console.acme.io/teams/data-platform <span class="tenant-chip" style="border-color:#2b313b;color:#58a6ff;">Acme Data</span></span>
+              <span style="margin-left:auto;font-family:var(--mono);font-size:10px;color:#6e7681;border:1px solid #2b313b;border-radius:6px;padding:2px 8px;">⌘K&nbsp;&nbsp;search</span></div>
+            <div style="padding:14px 16px;background:#0d1117;">
+              <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">
+                <span style="font-weight:680;font-size:13.5px;">Data Platform</span>
+                <span style="color:#8b949e;font-size:11.5px;">5 people · 7 skills · target grade L2</span>
+                <span style="margin-left:auto;font-family:var(--mono);font-size:10px;color:#8b949e;">avg readiness <span style="color:#58a6ff;">61%</span></span></div>
+
+              <div style="overflow-x:auto;">
+              <table style="border-collapse:separate;border-spacing:3px;font-family:var(--mono);font-size:10.5px;width:100%;">
+                <thead><tr style="color:#6e7681;">
+                  <th style="text-align:left;font-weight:500;padding-right:8px;"></th>
+                  <th style="font-weight:500;">SQL</th><th style="font-weight:500;">Py</th><th style="font-weight:500;">Airflow</th><th style="font-weight:500;">dbt</th><th style="font-weight:500;">Kafka</th><th style="font-weight:500;">Terra</th><th style="font-weight:500;">Spark</th>
+                  <th style="font-weight:500;color:#8b949e;padding-left:6px;">RDY</th></tr></thead>
+                <tbody style="color:#e6edf3;">
+                  <!-- helper cells: bg by level, letter shows level (not colour-only) -->
+                  <tr>
+                    <td style="text-align:left;color:#e6edf3;padding-right:8px;white-space:nowrap;">Priya N.</td>
+                    <td style="background:#22b8cf;color:#04222a;text-align:center;border-radius:4px;">P</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="background:#14323a;color:#5fb3c4;text-align:center;border-radius:4px;">A</td>
+                    <td style="background:#161b22;color:#3d444d;text-align:center;border-radius:4px;border:1px solid #2b313b;">·</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="background:#14323a;color:#5fb3c4;text-align:center;border-radius:4px;">A</td>
+                    <td style="text-align:right;padding-left:6px;color:#58a6ff;">68</td></tr>
+                  <tr>
+                    <td style="text-align:left;padding-right:8px;">Arjun K.</td>
+                    <td style="background:#67e8f9;color:#04222a;text-align:center;border-radius:4px;">E</td>
+                    <td style="background:#22b8cf;color:#04222a;text-align:center;border-radius:4px;">P</td>
+                    <td style="background:#22b8cf;color:#04222a;text-align:center;border-radius:4px;">P</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="background:#22b8cf;color:#04222a;text-align:center;border-radius:4px;">P</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="text-align:right;padding-left:6px;color:#3fb950;">84</td></tr>
+                  <tr>
+                    <td style="text-align:left;padding-right:8px;">Meera R.</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="background:#14323a;color:#5fb3c4;text-align:center;border-radius:4px;">A</td>
+                    <td style="background:#14323a;color:#5fb3c4;text-align:center;border-radius:4px;">A</td>
+                    <td style="background:#161b22;color:#3d444d;text-align:center;border-radius:4px;border:1px solid #2b313b;">·</td>
+                    <td style="background:#161b22;color:#3d444d;text-align:center;border-radius:4px;border:1px solid #2b313b;">·</td>
+                    <td style="background:#14323a;color:#5fb3c4;text-align:center;border-radius:4px;">A</td>
+                    <td style="background:#161b22;color:#3d444d;text-align:center;border-radius:4px;border:1px solid #2b313b;">·</td>
+                    <td style="text-align:right;padding-left:6px;color:#d29922;">41</td></tr>
+                  <tr>
+                    <td style="text-align:left;padding-right:8px;">Sam T.</td>
+                    <td style="background:#22b8cf;color:#04222a;text-align:center;border-radius:4px;">P</td>
+                    <td style="background:#22b8cf;color:#04222a;text-align:center;border-radius:4px;">P</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="background:#14323a;color:#5fb3c4;text-align:center;border-radius:4px;">A</td>
+                    <td style="background:#161b22;color:#3d444d;text-align:center;border-radius:4px;border:1px solid #2b313b;">·</td>
+                    <td style="background:#14323a;color:#5fb3c4;text-align:center;border-radius:4px;">A</td>
+                    <td style="text-align:right;padding-left:6px;color:#58a6ff;">72</td></tr>
+                  <tr>
+                    <td style="text-align:left;padding-right:8px;">Rohan V.</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="background:#0e7490;color:#cdf5ff;text-align:center;border-radius:4px;">W</td>
+                    <td style="background:#161b22;color:#3d444d;text-align:center;border-radius:4px;border:1px solid #2b313b;">·</td>
+                    <td style="background:#161b22;color:#3d444d;text-align:center;border-radius:4px;border:1px solid #2b313b;">·</td>
+                    <td style="background:#14323a;color:#5fb3c4;text-align:center;border-radius:4px;">A</td>
+                    <td style="background:#161b22;color:#3d444d;text-align:center;border-radius:4px;border:1px solid #2b313b;">·</td>
+                    <td style="background:#161b22;color:#3d444d;text-align:center;border-radius:4px;border:1px solid #2b313b;">·</td>
+                    <td style="text-align:right;padding-left:6px;color:#d29922;">38</td></tr>
+                </tbody>
+              </table>
+              </div>
+              <div style="display:flex;gap:14px;margin-top:12px;font-family:var(--mono);font-size:9.5px;color:#8b949e;align-items:center;flex-wrap:wrap;">
+                <span style="color:#6e7681;">LEVEL</span>
+                <span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#14323a;vertical-align:-1px;"></i> A&nbsp;Aware</span>
+                <span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#0e7490;vertical-align:-1px;"></i> W&nbsp;Working</span>
+                <span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#22b8cf;vertical-align:-1px;"></i> P&nbsp;Proficient</span>
+                <span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#67e8f9;vertical-align:-1px;"></i> E&nbsp;Expert</span>
+                <span style="color:#6e7681;">· letter shown so status never rides on colour alone</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="cap"><b>DRILL-IN</b> — Click a cell → the same gap-diff, in Console's register</p>
+          <div class="screen" style="--s-bg:#0d1117; --s-border:#2b313b; --s-ink:#e6edf3; --s-muted:#8b949e; --s-accent:#58a6ff;">
+            <div class="sbar" style="background:#161b22;"><span class="dot" style="background:#3d444d"></span><span class="dot" style="background:#3d444d"></span><span class="dot" style="background:#3d444d"></span>
+              <span class="url" style="color:#8b949e;">console.acme.io/p/priya-nair · target L2</span></div>
+            <div style="padding:13px 16px;background:#0d1117;font-family:var(--mono);font-size:11px;">
+              <div style="display:flex;justify-content:space-between;color:#8b949e;border-bottom:1px solid #2b313b;padding-bottom:8px;margin-bottom:8px;">
+                <span style="color:#e6edf3;font-weight:600;">Priya Nair → Data Engineer L2</span><span>readiness <span style="color:#58a6ff;">68%</span> · 2 gaps</span></div>
+              <div style="display:grid;grid-template-columns:1fr auto auto;gap:6px 14px;color:#c9d1d9;">
+                <span>python</span><span style="color:#8b949e;">working → proficient</span><span style="color:#d29922;">−1</span>
+                <span>dbt</span><span style="color:#8b949e;">aware → working</span><span style="color:#d29922;">−1</span>
+                <span>kafka</span><span style="color:#8b949e;">none → aware</span><span style="color:#f85149;">−1</span>
+                <span style="color:#3fb950;">sql · airflow · data-modeling</span><span style="color:#8b949e;">at / above target</span><span style="color:#3fb950;">ok</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DIRECTION 04 · PATH ================= -->
+  <div class="dir">
+    <div class="shell">
+      <div class="dir-grid">
+        <aside class="dir-meta">
+          <div class="dir-id">04</div>
+          <div class="dir-name"><span class="swatch" style="background:#0d9488"></span>Path</div>
+          <div class="dir-tag">guided roadmap · momentum</div>
+          <p class="thesis">Turns the gap into a <strong>route</strong>. The learner's home is an ordered roadmap from
+            where they are to their target grade, with the next step and its resource front-and-centre. Answers
+            <em>"what do I do next?"</em> without a decision. The bet: <strong>this is what makes people come back.</strong></p>
+
+          <div class="badges">
+            <span class="badge">Roadmap spine</span><span class="badge">Ordered steps</span><span class="badge">Resource-linked</span><span class="badge">Teal accent</span>
+          </div>
+
+          <div class="rationale">
+            <div class="rat good"><div class="lab">Strengths</div>
+              <ul><li>Highest learner adoption &amp; return-visit pull</li><li>Makes “next action” unmissable — low cognitive load</li><li>Naturally showcases the resource catalogue</li></ul></div>
+            <div class="rat warn"><div class="lab">Tradeoffs</div>
+              <ul><li>Needs a real roadmap/ordering engine on the backend (Phase 2)</li><li>Manager &amp; admin analytics feel secondary here</li></ul></div>
+            <div class="rat when"><div class="lab">Best when</div>
+              <p>The primary goal is changing individual learning behaviour, not reporting on it.</p></div>
+          </div>
+        </aside>
+
+        <div class="dir-canvas">
+          <p class="cap"><b>HERO</b> — The gap, re-drawn as a route to L2</p>
+          <div class="screen" style="--s-bg:#f6faf9; --s-border:#dcece8; --s-ink:#0f2e2a; --s-muted:#5c7671; --s-accent:#0d9488; --s-good:#0d9488; --s-warn:#c2660c;">
+            <div class="sbar" style="background:#eef6f4;"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span class="url" style="color:#5c7671;">path.acme.io <span class="tenant-chip" style="border-color:#a7d9d1;color:#0d9488;">◆ Acme Data</span></span></div>
+            <div style="padding:18px 22px 22px;background:#f6faf9;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:10px;">
+                <div style="font-size:16px;font-weight:720;color:#0f2e2a;letter-spacing:-.01em;">Your route to <span style="color:#0d9488;">Data Engineer · L2</span></div>
+                <div style="font-family:var(--mono);font-size:11px;color:#5c7671;">3 of 5 milestones cleared · 68%</div></div>
+
+              <div style="margin-top:16px;position:relative;padding-left:26px;">
+                <!-- spine -->
+                <div style="position:absolute;left:9px;top:6px;bottom:6px;width:2px;background:linear-gradient(#0d9488 60%,#cfe6e2 60%);"></div>
+
+                <div style="position:relative;margin-bottom:16px;">
+                  <span style="position:absolute;left:-24px;top:0;width:16px;height:16px;border-radius:50%;background:#0d9488;color:#fff;font-size:9px;display:grid;place-items:center;">✓</span>
+                  <div style="font-weight:600;color:#0f2e2a;">SQL → Proficient</div>
+                  <div style="font-size:11.5px;color:#5c7671;">Cleared · verified by Anita Rao</div></div>
+
+                <div style="position:relative;margin-bottom:16px;">
+                  <span style="position:absolute;left:-24px;top:0;width:16px;height:16px;border-radius:50%;background:#0d9488;color:#fff;font-size:9px;display:grid;place-items:center;">✓</span>
+                  <div style="font-weight:600;color:#0f2e2a;">Data modeling → Working</div>
+                  <div style="font-size:11.5px;color:#5c7671;">Cleared · exceeds target</div></div>
+
+                <!-- current step -->
+                <div style="position:relative;margin-bottom:16px;">
+                  <span style="position:absolute;left:-26px;top:-2px;width:20px;height:20px;border-radius:50%;background:#fff;border:3px solid #0d9488;box-shadow:0 0 0 4px #d7efeb;"></span>
+                  <div style="background:#fff;border:1px solid #cfe6e2;border-radius:11px;padding:12px 14px;box-shadow:0 4px 14px -8px rgba(13,148,136,.4);">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                      <span style="font-weight:700;color:#0f2e2a;">Now · Python → Proficient</span>
+                      <span style="font-family:var(--mono);font-size:10px;color:#0d9488;">1 level to go</span></div>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:10px;background:#f2faf8;border:1px solid #dcece8;border-radius:8px;padding:8px 10px;">
+                      <span style="width:30px;height:30px;border-radius:7px;background:#0d9488;color:#fff;display:grid;place-items:center;font-size:13px;">▶</span>
+                      <div style="flex:1;"><div style="font-size:12.5px;font-weight:600;color:#0f2e2a;">Intermediate Python for Data</div>
+                        <div style="font-size:11px;color:#5c7671;">Course · 4h · 2 of 6 modules done</div></div>
+                      <div style="width:52px;"><div style="height:5px;border-radius:99px;background:#dcece8;overflow:hidden;"><div style="width:33%;height:100%;background:#0d9488;"></div></div></div></div>
+                    <div style="margin-top:10px;"><span style="font-size:12px;font-weight:640;color:#fff;background:#0d9488;padding:6px 13px;border-radius:7px;">Continue module 3</span></div>
+                  </div></div>
+
+                <div style="position:relative;margin-bottom:14px;">
+                  <span style="position:absolute;left:-24px;top:0;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #b6d8d2;"></span>
+                  <div style="font-weight:600;color:#0f2e2a;">Next · dbt → Working <span style="font-weight:400;color:#8aa5a0;font-size:11px;">· 1 resource queued</span></div></div>
+
+                <div style="position:relative;">
+                  <span style="position:absolute;left:-24px;top:0;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #b6d8d2;"></span>
+                  <div style="font-weight:600;color:#0f2e2a;">Then · Kafka → Aware</div></div>
+              </div>
+            </div>
+          </div>
+
+          <p class="cap"><b>PROVES ITS IA</b> — The skill catalogue reads as “things to add to your route”</p>
+          <div class="screen" style="--s-bg:#f6faf9; --s-border:#dcece8; --s-ink:#0f2e2a; --s-muted:#5c7671; --s-accent:#0d9488;">
+            <div class="sbar" style="background:#eef6f4;"><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span class="url" style="color:#5c7671;">path.acme.io/skills</span></div>
+            <div style="padding:14px 18px;background:#f6faf9;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div style="background:#fff;border:1px solid #dcece8;border-radius:10px;padding:11px 12px;">
+                <div style="font-weight:640;color:#0f2e2a;">dbt</div>
+                <div style="font-size:11px;color:#5c7671;margin:3px 0 9px;">Data transformation · on your route</div>
+                <span style="font-size:11px;font-weight:600;color:#0d9488;border:1px solid #a7d9d1;padding:4px 10px;border-radius:6px;">On your path ✓</span></div>
+              <div style="background:#fff;border:1px solid #dcece8;border-radius:10px;padding:11px 12px;">
+                <div style="font-weight:640;color:#0f2e2a;">Terraform</div>
+                <div style="font-size:11px;color:#5c7671;margin:3px 0 9px;">Infrastructure · not required for L2</div>
+                <span style="font-size:11px;font-weight:600;color:#fff;background:#0d9488;padding:4px 10px;border-radius:6px;">+ Add to route</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= RECOMMENDATION ================= -->
+  <section style="border-bottom:none;">
+    <div class="shell">
+      <div class="sec-head"><span class="eyebrow">A point of view</span><h2>What I'd recommend — but it's your call</h2></div>
+      <p class="sec-intro">You asked for options to choose from, so treat this as one vote, not a verdict. My read,
+      given the Phase-1/Phase-2 timeline and that the shell already exists:</p>
+
+      <div class="rec">
+        <span class="eyebrow">Recommendation</span>
+        <h3>Ship <strong style="color:#f0c987;font-weight:640;">01 Clearing</strong> as the base, and borrow <strong style="color:#f0c987;font-weight:640;">02 Signet's</strong> verified-vs-self-declared idea as the one differentiator.</h3>
+        <p>Clearing gets us a demo fastest because it reuses Vivek's shell and tokens almost untouched. Signet's
+        “who verified this” treatment is the cheapest way to make the product feel like <em>ours</em> rather than a
+        generic LMS — and it's exactly the repo's stated thesis. Console's heatmap is the right manager view
+        <em>regardless</em> of which direction wins, so plan for it in Phase 2. Path is the most exciting learner
+        bet, but it depends on a roadmap engine that doesn't exist yet — a strong Phase-2/3 candidate once the core
+        loop runs.</p>
+        <div class="steps">
+          <div class="step"><div class="n">IF 01 / 02</div><div class="t">Design tokens + one hero screen built for real this week; slots straight into the existing AppShell.</div></div>
+          <div class="step"><div class="n">IF 03</div><div class="t">Start with the heatmap data contract — the readiness/gap API shape drives everything.</div></div>
+          <div class="step"><div class="n">IF 04</div><div class="t">Scope the roadmap/ordering engine first; the UI is easy once step-ordering exists.</div></div>
+          <div class="step"><div class="n">Either way</div><div class="t">Pick an ID, I turn it into a clickable Tailwind prototype on a branch off <span style="font-family:var(--mono);">basic-setup</span>.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="shell pageft">
+    Skills LMS · frontend direction review · mockups are illustrative, built on the real React 19 + Tailwind v4 stack from PR #1 · pick an ID to proceed
+  </footer>
+
+</div>

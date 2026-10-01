@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from django.contrib.auth import authenticate
+from django.db.models import Q
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import AllowAny
@@ -10,7 +13,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.identity.models import Membership, Tenant
+from apps.identity.models import Membership, OrgUnit, Tenant
 from apps.identity.serializers import (
     LoginSerializer,
     MembershipSummarySerializer,
@@ -18,6 +21,7 @@ from apps.identity.serializers import (
     PersonSummarySerializer,
     TenantSummarySerializer,
 )
+from apps.skills.models import SelfDeclaredSkill
 from core import audit
 from core.context import get_current_tenant
 from core.permissions import HasCapability, capabilities_for
@@ -79,12 +83,46 @@ class SessionView(APIView):
         )
 
 
+@extend_schema(
+    summary="List directory members",
+    description=(
+        "Paginated directory of the active tenant's ACTIVE members. "
+        "Optional filters: ``skill`` (members who declared it), ``level`` "
+        "(minimum declared level, use with ``skill``), ``org_unit`` (subtree)."
+    ),
+    tags=["Identity"],
+    parameters=[
+        OpenApiParameter(
+            "skill", OpenApiTypes.UUID, description="Filter to members who declared this skill."
+        ),
+        OpenApiParameter(
+            "level",
+            OpenApiTypes.INT,
+            description="Minimum declared level (requires ``skill``).",
+        ),
+        OpenApiParameter(
+            "org_unit",
+            OpenApiTypes.UUID,
+            description="Filter to members in this org unit's subtree.",
+        ),
+    ],
+)
 class PeopleListView(ListAPIView):
     """Paginated directory of the active tenant's ACTIVE members. Gated by directory.view.
 
     Only memberships with status="active" are included; ended or suspended memberships
     are hidden per spec (data-model.md: "Ending a membership hides the person from
     tenant reports").
+
+    Supports filters ``?skill=&org_unit=&level=``:
+
+    - ``skill`` (and optional minimum ``level``): members who hold the skill. Phase 1
+      reads the self-declared tier (``SelfDeclaredSkill``). **Part B switch:** once the
+      verified ``SkillAssertion`` tier lands, filter on that instead (the directory
+      should surface verified capability, not self-claims).
+    - ``org_unit``: members whose org unit is in the given unit's subtree, matched by
+      the materialised ``path`` prefix (``path == target`` or ``path startswith
+      target + "."``). All queries stay tenant-scoped via ``Membership.objects``.
     """
 
     serializer_class = PersonDirectorySerializer
@@ -93,8 +131,30 @@ class PeopleListView(ListAPIView):
 
     def get_queryset(self):
         # Membership.objects is tenant-scoped (fails closed with no tenant in context).
-        return (
+        qs = (
             Membership.objects.filter(status="active")
             .select_related("person", "org_unit")
             .order_by("person__display_name")
         )
+        params = self.request.query_params
+
+        skill_id = params.get("skill")
+        if skill_id:
+            # Phase 1: self-declared tier. Part B: switch to verified SkillAssertion.
+            declared = SelfDeclaredSkill.objects.filter(skill_id=skill_id)
+            level = params.get("level")
+            if level:
+                declared = declared.filter(level__gte=level)
+            qs = qs.filter(id__in=declared.values("membership_id"))
+
+        org_unit_id = params.get("org_unit")
+        if org_unit_id:
+            target = OrgUnit.objects.filter(id=org_unit_id).first()
+            if target is None:
+                return qs.none()
+            # Subtree via materialised path prefix: the unit itself + descendants.
+            qs = qs.filter(
+                Q(org_unit__path=target.path) | Q(org_unit__path__startswith=f"{target.path}.")
+            )
+
+        return qs
