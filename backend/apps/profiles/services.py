@@ -84,6 +84,78 @@ def compute_readiness(membership: Any, job_profile: Any) -> Any:
     return snapshot
 
 
+def publish_job_profile(job_profile: Any, actor: Any) -> Any:
+    """
+    Transition a draft job profile to published. Audited. Idempotent in effect.
+    """
+    from core import audit
+
+    job_profile.status = "published"
+    job_profile.save(update_fields=["status", "updated_at"])
+    audit.record(
+        actor=actor,
+        action="jobprofile.publish",
+        resource=job_profile,
+        tenant_id=job_profile.tenant_id,
+        job_profile_id=str(job_profile.id),
+    )
+    return job_profile
+
+
+def new_version_from_profile(job_profile: Any, actor: Any) -> Any:
+    """
+    Create and return a new draft version of a published job profile.
+
+    The prior version row is retained (readiness snapshots pin the version).
+    The new draft copies the title/track/grade and the requirements.
+    """
+    from django.db import transaction
+
+    from apps.profiles.models import JobProfile, ProfileRequirement
+    from core import audit
+
+    with transaction.atomic():
+        next_version = (
+            JobProfile.all_tenants.filter(
+                tenant_id=job_profile.tenant_id,
+                track=job_profile.track,
+                grade=job_profile.grade,
+                title=job_profile.title,
+            )
+            .order_by("-version")
+            .values_list("version", flat=True)
+            .first()
+            or job_profile.version
+        ) + 1
+        new_profile = JobProfile.objects.create(
+            tenant_id=job_profile.tenant_id,
+            track=job_profile.track,
+            grade=job_profile.grade,
+            title=job_profile.title,
+            status="draft",
+            version=next_version,
+        )
+        # Copy requirements onto the new version.
+        for req in ProfileRequirement.all_tenants.filter(job_profile=job_profile):
+            ProfileRequirement.objects.create(
+                tenant_id=job_profile.tenant_id,
+                job_profile=new_profile,
+                skill=req.skill,
+                min_level=req.min_level,
+                criticality=req.criticality,
+            )
+    audit.record(
+        actor=actor,
+        action="jobprofile.new_version",
+        resource=new_profile,
+        tenant_id=new_profile.tenant_id,
+        job_profile_id=str(new_profile.id),
+        from_job_profile_id=str(job_profile.id),
+        version=next_version,
+    )
+    return new_profile
+
+
 def recompute_for_membership(membership: Any) -> None:
     """
     Recompute readiness snapshots for a membership.
