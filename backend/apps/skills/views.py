@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import mixins, viewsets
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -28,6 +28,10 @@ DECLARE_CAPABILITY = "skill.claim.submit"
 _WRITE_ACTIONS = {"create", "update", "partial_update", "destroy"}
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List skill domains", tags=["Skills"]),
+    retrieve=extend_schema(summary="Retrieve a skill domain", tags=["Skills"]),
+)
 @extend_schema(tags=["Skills"])
 class SkillDomainViewSet(viewsets.ReadOnlyModelViewSet):
     """List/retrieve skill domains visible to the tenant (globals + tenant rows)."""
@@ -41,6 +45,14 @@ class SkillDomainViewSet(viewsets.ReadOnlyModelViewSet):
         return SkillDomain.objects.visible().order_by("sort", "name")
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List skills", tags=["Skills"]),
+    retrieve=extend_schema(summary="Retrieve a skill", tags=["Skills"]),
+    create=extend_schema(summary="Create a tenant skill", tags=["Skills"]),
+    update=extend_schema(summary="Replace a skill", tags=["Skills"]),
+    partial_update=extend_schema(summary="Update a skill", tags=["Skills"]),
+    destroy=extend_schema(summary="Retire a skill", tags=["Skills"]),
+)
 @extend_schema(tags=["Skills"])
 class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
     """
@@ -100,6 +112,11 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         services.retire_skill(instance, self.request.user)
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List my skill declarations", tags=["Skills"]),
+    create=extend_schema(summary="Declare a skill", tags=["Skills"]),
+    destroy=extend_schema(summary="Remove a skill declaration", tags=["Skills"]),
+)
 @extend_schema(tags=["Skills"])
 class SelfDeclaredSkillViewSet(
     mixins.ListModelMixin,

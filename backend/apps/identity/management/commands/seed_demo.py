@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand
 
 from apps.authz.models import Capability, Role, RoleCapability, RoleGrant
 from apps.identity.models import Membership, Person, Tenant
+from apps.skills.models import Skill, SkillDomain
 from core.context import tenant_context
 
 CAPABILITIES = [
@@ -19,10 +20,32 @@ CAPABILITIES = [
     "jobprofile.edit",
     "report.org.view",
 ]
+# The capabilities Part A/B endpoints gate on (reconciled below; superset is fine).
+REQUIRED_CAPABILITIES = [
+    "directory.view",
+    "skill.claim.submit",
+    "taxonomy.edit",
+    "jobprofile.edit",
+    "member.invite",
+    "member.offboard",
+    "skill.verify",
+    "report.org.view",
+]
 ROLE_CAPS: dict[str, list[str]] = {
     "Learner": ["directory.view", "skill.claim.submit"],
-    "Manager": ["directory.view", "skill.claim.submit", "report.org.view"],
+    "Manager": [
+        "directory.view",
+        "skill.claim.submit",
+        "report.org.view",
+        "skill.verify",
+    ],
     "Admin": CAPABILITIES,
+}
+
+# A few global (tenant NULL) skill domains + skills, read-only and shared by all tenants.
+GLOBAL_DOMAINS: dict[str, list[tuple[str, str]]] = {
+    "Data": [("SQL", "sql"), ("Python", "python"), ("Data modeling", "data-modeling")],
+    "Platform": [("Airflow", "airflow"), ("dbt", "dbt"), ("Kafka", "kafka")],
 }
 
 
@@ -30,8 +53,11 @@ class Command(BaseCommand):
     help = "Seed two demo tenants with roles, capabilities, people and memberships."
 
     def handle(self, *args: object, **options: object) -> None:
-        for key in CAPABILITIES:
+        # Reconcile every capability the endpoints gate on (plus the legacy superset).
+        for key in [*CAPABILITIES, *REQUIRED_CAPABILITIES]:
             Capability.objects.get_or_create(key=key)
+
+        self._global_skills()
 
         acme = self._tenant("acme", "Acme", "#4f46e5")
         northwind = self._tenant("northwind", "Northwind", "#0891b2")
@@ -46,6 +72,22 @@ class Command(BaseCommand):
         self._member(northwind, dana, "Manager")
 
         self.stdout.write(self.style.SUCCESS("seed_demo complete."))
+
+    def _global_skills(self) -> None:
+        # Globals (tenant NULL) use the unscoped default manager; no tenant context needed.
+        for domain_name, skills in GLOBAL_DOMAINS.items():
+            domain, _ = SkillDomain.objects.get_or_create(tenant=None, name=domain_name)
+            for skill_name, slug in skills:
+                Skill.objects.get_or_create(
+                    tenant=None,
+                    slug=slug,
+                    version=1,
+                    defaults={
+                        "domain": domain,
+                        "name": skill_name,
+                        "status": "published",
+                    },
+                )
 
     def _tenant(self, slug: str, name: str, accent: str) -> Tenant:
         tenant, _ = Tenant.objects.get_or_create(
