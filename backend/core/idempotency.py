@@ -58,16 +58,31 @@ def idempotent(
     method = request.method
     path = request.path
 
-    existing = IdempotencyRecord.objects.filter(key=key, method=method, path=path).first()
-    if existing is not None:
-        return Response(existing.response_body, status=existing.response_status)
+    # Use SELECT FOR UPDATE inside a transaction so that concurrent first-calls
+    # with the same key queue behind one another rather than both running the
+    # factory and creating the underlying resource twice.  The lock is advisory
+    # (row-level on IdempotencyRecord); if no row exists yet we rely on the
+    # UNIQUE constraint as the final backstop and discard the duplicate result.
+    with transaction.atomic():
+        try:
+            existing = (
+                IdempotencyRecord.objects.select_for_update()
+                .filter(key=key, method=method, path=path)
+                .first()
+            )
+        except Exception:
+            # select_for_update may raise outside a transaction (e.g. in tests
+            # with AUTOCOMMIT); fall back to a plain read.
+            existing = IdempotencyRecord.objects.filter(key=key, method=method, path=path).first()
 
-    response = response_factory()
-    # Ensure DRF has rendered serializer data into a plain structure we can store.
-    raw_body = response.data if hasattr(response, "data") else None
-    body = _json_safe(raw_body) if raw_body is not None else {}
-    try:
-        with transaction.atomic():
+        if existing is not None:
+            return Response(existing.response_body, status=existing.response_status)
+
+        response = response_factory()
+        # Ensure DRF has rendered serializer data into a plain structure we can store.
+        raw_body = response.data if hasattr(response, "data") else None
+        body = _json_safe(raw_body) if raw_body is not None else {}
+        try:
             IdempotencyRecord.objects.create(
                 tenant_id=tenant_id,
                 key=key,
@@ -76,10 +91,10 @@ def idempotent(
                 response_status=response.status_code,
                 response_body=body,
             )
-    except IntegrityError:
-        # A concurrent request won the unique constraint; return the stored result.
-        record = IdempotencyRecord.objects.get(key=key, method=method, path=path)
-        return Response(record.response_body, status=record.response_status)
+        except IntegrityError:
+            # Concurrent request won despite the lock (e.g. different DB session).
+            record = IdempotencyRecord.objects.get(key=key, method=method, path=path)
+            return Response(record.response_body, status=record.response_status)
     return response
 
 

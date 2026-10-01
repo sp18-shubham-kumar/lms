@@ -68,6 +68,10 @@ class TenantContextMiddleware(MiddlewareMixin):
         # through untouched.
         if tenant_id is not None:
             person = _authenticated_person(request)
+            # Cache the resolved person on the request so DRF's own auth chain can
+            # reuse it (avoiding a second JWT validation + DB lookup on every request).
+            if person is not None:
+                request._cached_jwt_user = person
             if person is not None and getattr(person, "is_authenticated", False):
                 from apps.identity.models import Membership
 

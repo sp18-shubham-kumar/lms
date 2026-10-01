@@ -85,7 +85,9 @@ class RoleGrantViewSet(
 
     def perform_create(self, serializer: Any) -> None:
         tenant_id = get_current_tenant()
-        grant = serializer.save(tenant_id=tenant_id)
+        # Force principal_type to "person" — group grants are not resolved by
+        # capabilities_for() yet and would silently never take effect.
+        grant = serializer.save(tenant_id=tenant_id, principal_type="person")
         audit.record(
             actor=self.request.user,
             action="member.grant",
