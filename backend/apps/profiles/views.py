@@ -2,8 +2,8 @@
 Views for the profiles app.
 
 Endpoints:
-- /api/profiles/tracks/            CRUD (jobprofile.edit)
-- /api/profiles/job-profiles/      CRUD (jobprofile.edit)
+- /api/profiles/tracks/            CRUD (read: directory.view, write: jobprofile.edit)
+- /api/profiles/job-profiles/      CRUD (read: directory.view, write: jobprofile.edit)
   + POST /job-profiles/{id}/requirements/          add requirement
   + DELETE /job-profiles/{id}/requirements/{req}/  remove requirement
   + POST /job-profiles/{id}/publish/               publish (versioned)
@@ -37,6 +37,28 @@ from core.idempotency import IdempotentCreateMixin
 from core.permissions import HasCapability
 
 EDIT_CAPABILITY = "jobprofile.edit"
+READ_CAPABILITY = "directory.view"
+
+# Reads (list/retrieve) are open to any directory viewer — a learner needs to
+# see the career ladder to pick a target grade. Writes require jobprofile.edit.
+# Mirrors the read/write split in the skills app.
+_WRITE_ACTIONS = {
+    "create",
+    "update",
+    "partial_update",
+    "destroy",
+    "add_requirement",
+    "remove_requirement",
+    "publish",
+}
+
+
+def _profile_permissions(view: Any) -> list[Any]:
+    """Read actions require directory.view; write actions require jobprofile.edit."""
+    view.required_capability = EDIT_CAPABILITY if view.action in _WRITE_ACTIONS else READ_CAPABILITY
+    perms: list[Any] = [perm() for perm in APIView.permission_classes]
+    perms.append(HasCapability())
+    return perms
 
 
 @extend_schema_view(
@@ -74,14 +96,17 @@ EDIT_CAPABILITY = "jobprofile.edit"
 @extend_schema(tags=["Profiles"])
 class TrackViewSet(viewsets.ModelViewSet):
     """
-    CRUD for career tracks. All actions require ``jobprofile.edit``.
+    CRUD for career tracks. Reads require ``directory.view``; writes require
+    ``jobprofile.edit``.
 
     Reads are tenant-scoped (scoped manager). Writes are audited.
     """
 
     serializer_class = TrackSerializer
-    permission_classes = [*APIView.permission_classes, HasCapability]
     required_capability = EDIT_CAPABILITY
+
+    def get_permissions(self) -> list[Any]:
+        return _profile_permissions(self)
 
     def get_queryset(self) -> Any:
         return Track.objects.order_by("name")
@@ -159,7 +184,9 @@ class TrackViewSet(viewsets.ModelViewSet):
 @extend_schema(tags=["Profiles"])
 class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
     """
-    CRUD for job profiles. All actions require ``jobprofile.edit``.
+    CRUD for job profiles. Reads (list/retrieve) require ``directory.view`` so a
+    learner can browse the career ladder and pick a target grade; writes require
+    ``jobprofile.edit``.
 
     Create is idempotent via the ``Idempotency-Key`` header. Reads are
     tenant-scoped. Writes are audited. Publishing and versioning follow the
@@ -167,8 +194,10 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
     """
 
     serializer_class = JobProfileSerializer
-    permission_classes = [*APIView.permission_classes, HasCapability]
     required_capability = EDIT_CAPABILITY
+
+    def get_permissions(self) -> list[Any]:
+        return _profile_permissions(self)
 
     def get_queryset(self) -> Any:
         return JobProfile.objects.select_related("track").order_by("track", "grade", "version")
