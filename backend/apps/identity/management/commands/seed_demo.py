@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
 from apps.authz.models import Capability, Role, RoleCapability, RoleGrant
-from apps.identity.models import Membership, Person, Tenant
+from apps.identity.models import Membership, OrgUnit, Person, Tenant
 from apps.skills.models import Skill, SkillDomain
 from core.context import tenant_context
 
@@ -148,8 +148,33 @@ class Command(BaseCommand):
         self._member(northwind, dana, "Manager")
 
         self._data_engineer_ladder(acme, bob)
+        self._seed_org_unit(acme, [alice, bob, dana])
 
         self.stdout.write(self.style.SUCCESS("seed_demo complete."))
+
+    def _seed_org_unit(self, tenant: Tenant, people: list[Person]) -> None:
+        """
+        Put the Acme demo members in one org unit and compute their readiness
+        against Data Engineer L2, so the team heatmap has rows to render.
+        Idempotent.
+        """
+        from apps.profiles.models import JobProfile
+        from apps.profiles.services import compute_readiness
+
+        with tenant_context(tenant.id):
+            unit, _ = OrgUnit.objects.get_or_create(
+                tenant=tenant, name="Data Platform", defaults={"path": "data-platform"}
+            )
+            l2 = JobProfile.objects.filter(track__name="Data Engineering", grade=2).first()
+            for person in people:
+                membership = Membership.objects.filter(person=person, tenant=tenant).first()
+                if membership is None:
+                    continue
+                if membership.org_unit_id != unit.id:
+                    membership.org_unit = unit
+                    membership.save(update_fields=["org_unit"])
+                if l2 is not None:
+                    compute_readiness(membership, l2)
 
     def _global_skills(self) -> None:
         # Globals (tenant NULL) use the unscoped default manager; no tenant context needed.
