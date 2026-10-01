@@ -25,9 +25,9 @@ api_patterns = [
     ),
     # Domain apps — uncomment each as it is implemented.
     path("identity/", include("apps.identity.domain_urls")),
-    # path("authz/", include("apps.authz.urls")),
-    # path("skills/", include("apps.skills.urls")),
-    # path("profiles/", include("apps.profiles.urls")),
+    path("authz/", include("apps.authz.urls")),
+    path("skills/", include("apps.skills.urls")),
+    path("profiles/", include("apps.profiles.urls")),
 ]
 
 urlpatterns = [

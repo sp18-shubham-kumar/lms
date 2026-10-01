@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand
 
 from apps.authz.models import Capability, Role, RoleCapability, RoleGrant
 from apps.identity.models import Membership, Person, Tenant
+from apps.skills.models import Skill, SkillDomain
 from core.context import tenant_context
 
 CAPABILITIES = [
@@ -19,19 +20,120 @@ CAPABILITIES = [
     "jobprofile.edit",
     "report.org.view",
 ]
+# The capabilities Part A/B endpoints gate on (reconciled below; superset is fine).
+REQUIRED_CAPABILITIES = [
+    "directory.view",
+    "skill.claim.submit",
+    "taxonomy.edit",
+    "jobprofile.edit",
+    "member.invite",
+    "member.offboard",
+    "skill.verify",
+    "report.org.view",
+]
 ROLE_CAPS: dict[str, list[str]] = {
     "Learner": ["directory.view", "skill.claim.submit"],
-    "Manager": ["directory.view", "skill.claim.submit", "report.org.view"],
+    "Manager": [
+        "directory.view",
+        "skill.claim.submit",
+        "report.org.view",
+        "skill.verify",
+    ],
     "Admin": CAPABILITIES,
 }
+
+# A few global (tenant NULL) skill domains + skills, read-only and shared by all tenants.
+GLOBAL_DOMAINS: dict[str, list[tuple[str, str]]] = {
+    "Data": [("SQL", "sql"), ("Python", "python"), ("Data modeling", "data-modeling")],
+    "Platform": [("Airflow", "airflow"), ("dbt", "dbt"), ("Kafka", "kafka")],
+}
+
+# SkillLevel definitions: skill_slug -> list of (level, title)
+SKILL_LEVELS: dict[str, list[tuple[int, str]]] = {
+    "sql": [
+        (1, "SQL Basics"),
+        (2, "SQL Intermediate"),
+        (3, "SQL Advanced"),
+    ],
+    "python": [
+        (1, "Python Basics"),
+        (2, "Python Intermediate"),
+        (3, "Python Advanced"),
+    ],
+    "data-modeling": [
+        (1, "Data Modeling Basics"),
+        (2, "Data Modeling Intermediate"),
+        (3, "Data Modeling Advanced"),
+    ],
+    "dbt": [
+        (1, "dbt Basics"),
+        (2, "dbt Intermediate"),
+        (3, "dbt Advanced"),
+    ],
+    "kafka": [
+        (1, "Kafka Basics"),
+        (2, "Kafka Intermediate"),
+    ],
+    "airflow": [
+        (1, "Airflow Basics"),
+        (2, "Airflow Intermediate"),
+    ],
+}
+
+# Data Engineer job profiles: title, grade, list of (skill_slug, min_level, criticality)
+DATA_ENGINEER_PROFILES: list[tuple[str, int, list[tuple[str, int, str]]]] = [
+    (
+        "Data Engineer L1",
+        1,
+        [
+            ("sql", 1, "core"),
+            ("python", 1, "core"),
+            ("data-modeling", 1, "supporting"),
+        ],
+    ),
+    (
+        "Data Engineer L2",
+        2,
+        [
+            ("sql", 2, "core"),
+            ("python", 2, "core"),
+            ("data-modeling", 2, "core"),
+            ("dbt", 1, "supporting"),
+            ("kafka", 1, "optional"),
+        ],
+    ),
+    (
+        "Data Engineer L3",
+        3,
+        [
+            ("sql", 3, "core"),
+            ("python", 3, "core"),
+            ("data-modeling", 3, "core"),
+            ("dbt", 2, "core"),
+            ("kafka", 2, "supporting"),
+            ("airflow", 1, "optional"),
+        ],
+    ),
+]
+
+# Bob's verified assertions: (skill_slug, level)
+BOB_ASSERTIONS: list[tuple[str, int]] = [
+    ("sql", 2),
+    ("python", 1),
+    ("data-modeling", 2),
+]
 
 
 class Command(BaseCommand):
     help = "Seed two demo tenants with roles, capabilities, people and memberships."
 
     def handle(self, *args: object, **options: object) -> None:
-        for key in CAPABILITIES:
+        # Reconcile every capability the endpoints gate on (plus the legacy superset).
+        for key in [*CAPABILITIES, *REQUIRED_CAPABILITIES]:
             Capability.objects.get_or_create(key=key)
+
+        self._global_skills()
+        self._global_skill_levels()
 
         acme = self._tenant("acme", "Acme", "#4f46e5")
         northwind = self._tenant("northwind", "Northwind", "#0891b2")
@@ -45,7 +147,109 @@ class Command(BaseCommand):
         self._member(acme, dana, "Learner")
         self._member(northwind, dana, "Manager")
 
+        self._data_engineer_ladder(acme, bob)
+
         self.stdout.write(self.style.SUCCESS("seed_demo complete."))
+
+    def _global_skills(self) -> None:
+        # Globals (tenant NULL) use the unscoped default manager; no tenant context needed.
+        for domain_name, skills in GLOBAL_DOMAINS.items():
+            domain, _ = SkillDomain.objects.get_or_create(tenant=None, name=domain_name)
+            for skill_name, slug in skills:
+                Skill.objects.get_or_create(
+                    tenant=None,
+                    slug=slug,
+                    version=1,
+                    defaults={
+                        "domain": domain,
+                        "name": skill_name,
+                        "status": "published",
+                    },
+                )
+
+    def _global_skill_levels(self) -> None:
+        """Seed SkillLevel rows for each global skill (idempotent)."""
+        from apps.skills.models import SkillLevel
+
+        for slug, levels in SKILL_LEVELS.items():
+            skill = Skill.objects.filter(tenant__isnull=True, slug=slug).first()
+            if skill is None:
+                continue
+            for level_num, title in levels:
+                SkillLevel.objects.get_or_create(
+                    skill=skill,
+                    level=level_num,
+                    defaults={"title": title},
+                )
+
+    def _data_engineer_ladder(self, tenant: Tenant, bob: Person) -> None:
+        """
+        Seed the Data Engineering track with L1/L2/L3 job profiles, then seed
+        verified assertions for bob and compute his readiness snapshot for L2.
+        All database writes happen inside tenant context.
+        """
+        from django.utils import timezone
+
+        from apps.profiles.models import JobProfile, ProfileRequirement, Track
+        from apps.profiles.services import compute_readiness, publish_job_profile
+        from apps.skills.models import SkillAssertion
+
+        with tenant_context(tenant.id):
+            # Create the track.
+            track, _ = Track.objects.get_or_create(tenant=tenant, name="Data Engineering")
+
+            # Create job profiles (idempotent by title+grade+version+track).
+            profiles = {}
+            for title, grade, requirements in DATA_ENGINEER_PROFILES:
+                profile, created = JobProfile.objects.get_or_create(
+                    tenant=tenant,
+                    track=track,
+                    grade=grade,
+                    title=title,
+                    version=1,
+                    defaults={"status": "draft"},
+                )
+                # Add requirements (idempotent by job_profile+skill).
+                for skill_slug, min_level, criticality in requirements:
+                    skill = Skill.objects.filter(tenant__isnull=True, slug=skill_slug).first()
+                    if skill is None:
+                        continue
+                    ProfileRequirement.objects.get_or_create(
+                        tenant=tenant,
+                        job_profile=profile,
+                        skill=skill,
+                        defaults={"min_level": min_level, "criticality": criticality},
+                    )
+                # Publish if still draft.
+                if profile.status == "draft":
+                    publish_job_profile(profile, actor=None)
+                profiles[grade] = profile
+
+            # Bob's membership.
+            bob_membership = Membership.objects.get(person=bob, tenant=tenant)
+
+            # Seed verified assertions for bob.
+            for skill_slug, level in BOB_ASSERTIONS:
+                skill = Skill.objects.filter(tenant__isnull=True, slug=skill_slug).first()
+                if skill is None:
+                    continue
+                SkillAssertion.all_tenants.get_or_create(
+                    membership=bob_membership,
+                    skill=skill,
+                    defaults={
+                        "tenant_id": tenant.id,
+                        "level": level,
+                        "skill_version": skill.version,
+                        "verified_by": None,
+                        "verified_at": timezone.now(),
+                        "note": "Seeded by seed_demo",
+                    },
+                )
+
+            # Compute readiness for bob against L2.
+            l2_profile = profiles.get(2)
+            if l2_profile is not None:
+                compute_readiness(bob_membership, l2_profile)
 
     def _tenant(self, slug: str, name: str, accent: str) -> Tenant:
         tenant, _ = Tenant.objects.get_or_create(

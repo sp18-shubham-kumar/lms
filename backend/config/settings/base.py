@@ -38,6 +38,7 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",  # ArrayField support (SkillLevel indicators/evidence_kinds)
 ]
 
 THIRD_PARTY_APPS = [
