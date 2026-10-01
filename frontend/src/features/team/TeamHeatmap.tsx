@@ -53,7 +53,14 @@ export function TeamHeatmap() {
         </select>
       </div>
 
+      {(orgUnits.isError || profiles.isError) && (
+        <p className="mt-3 text-ink-soft">Couldn’t load org units or job profiles.</p>
+      )}
+      {!orgUnits.isLoading && !orgUnits.data?.length && (
+        <p className="mt-3 text-ink-soft">No org units defined yet — add one to see the heatmap.</p>
+      )}
       {heatmap.isLoading && <p className="mt-3 text-ink-soft">Loading heatmap…</p>}
+      {heatmap.isError && <p className="mt-3 text-ink-soft">Could not load the heatmap.</p>}
       {heatmap.data && heatmap.data.rows.length > 0 ? (
         <div className="mt-3 overflow-x-auto">
           <table className="border-separate border-spacing-1 text-[12px]">

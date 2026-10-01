@@ -31,5 +31,9 @@ export interface SelfDeclaration {
   note: string
 }
 
-/** Human labels for the 1..5 level scale (level 0 = not declared). */
-export const LEVEL_LABELS = ['—', 'Aware', 'Working', 'Proficient', 'Expert', 'Master'] as const
+/**
+ * Human labels for the level scale (index 0 = not declared). The UI meter and
+ * declare picker use 1..4 (Aware → Expert); a higher backend level falls back to
+ * an "L{n}" label in SkillCard.
+ */
+export const LEVEL_LABELS = ['—', 'Aware', 'Working', 'Proficient', 'Expert'] as const

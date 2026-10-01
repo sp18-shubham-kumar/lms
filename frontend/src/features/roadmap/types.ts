@@ -13,15 +13,6 @@ export const LEVEL_NAMES = ['—', 'Aware', 'Working', 'Proficient', 'Expert'] a
 
 export type StepStatus = 'cleared' | 'current' | 'upcoming'
 
-export interface StepResource {
-  title: string
-  /** e.g. "Course", "Article", "Workshop". */
-  kind: string
-  duration: string
-  modulesDone: number
-  modulesTotal: number
-}
-
 export interface RoadmapStep {
   id: string
   skill: string
@@ -30,12 +21,10 @@ export interface RoadmapStep {
   /** The learner's current level in this skill, as an ordinal. */
   currentLevel: LevelValue
   status: StepStatus
-  /** Short line under a cleared/upcoming step (e.g. "Verified by Anita Rao"). */
+  /** Short line under a cleared/upcoming step (e.g. "Cleared · core"). */
   note?: string
   /** Levels still to gain to clear this step (for the current step). */
   levelsToGo?: number
-  /** The next thing to actually do — only the current step carries one. */
-  resource?: StepResource
 }
 
 export interface Roadmap {

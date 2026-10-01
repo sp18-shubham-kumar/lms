@@ -1,10 +1,10 @@
 /**
  * The learner's "My path": readiness toward a target job profile, drawn as a
- * route. Wired to GET /profiles/me/readiness/.
+ * route. Wired to GET /profiles/me/readiness/ (requires skill.claim.submit) and
+ * GET /profiles/job-profiles/ for the target picker (readable with directory.view).
  *
- * Target selection uses GET /profiles/job-profiles/, which currently requires
- * `jobprofile.edit` — so learners without it see guidance instead of a picker
- * (a backend gap flagged to the team).
+ * The picker is gated on skill.claim.submit — the capability the readiness call
+ * itself needs — so we never show a target a user can't actually compute.
  */
 import { useState } from 'react'
 
@@ -48,8 +48,9 @@ function toSteps(readiness: Readiness): RoadmapStep[] {
 
 export function RoadmapHome() {
   const { hasCapability } = useAuth()
-  // Any directory viewer can browse the career ladder and pick a target grade.
-  const canPickTarget = hasCapability('directory.view')
+  // Gate on the capability the readiness call needs, so picking a target can
+  // never dead-end on a 403.
+  const canPickTarget = hasCapability('skill.claim.submit')
 
   const profiles = useJobProfiles(canPickTarget)
   const [target, setTarget] = useState<string | null>(null)
@@ -106,6 +107,9 @@ export function RoadmapHome() {
       )}
 
       {readiness.isLoading && <p className="mt-5 text-ink-soft">Calculating readiness…</p>}
+      {readiness.isError && (
+        <p className="mt-5 text-ink-soft">Could not load readiness for this target.</p>
+      )}
       {readiness.data && <RoadmapSpine steps={toSteps(readiness.data)} />}
     </section>
   )

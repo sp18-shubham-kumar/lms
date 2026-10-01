@@ -1,9 +1,9 @@
 /**
  * Readiness / job-profile API hooks (TanStack Query over lib/api.ts).
  *
- * Note a current backend gap: GET /profiles/job-profiles/ requires the
- * `jobprofile.edit` capability, so a pure learner cannot list profiles to pick a
- * target. The target selector is therefore only shown to users who can list.
+ * GET /profiles/job-profiles/ is readable with `directory.view` (reads were
+ * opened up so learners can browse the career ladder); writes still require
+ * `jobprofile.edit`.
  */
 import { useQuery } from '@tanstack/react-query'
 
