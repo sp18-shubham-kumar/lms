@@ -207,3 +207,31 @@ class TenantSkillOverride(TenantScopedModel):
 
     def __str__(self) -> str:
         return f"TenantSkillOverride({self.tenant_id}, {self.skill_id})"
+
+
+class SkillAssertion(TenantScopedModel):
+    """
+    The **verified tier** — a recorded verified level for a member on a skill. This is
+    the ONLY source the readiness engine reads (self-declarations never gate readiness).
+
+    ``skill_version`` pins the skill version judged; ``skill_level`` optionally pins the
+    rubric rung. Verification history is never deleted (it is the tenant's audit record).
+    """
+
+    membership = models.ForeignKey(
+        "identity.Membership", on_delete=models.CASCADE, related_name="skill_assertions"
+    )
+    skill = models.ForeignKey(Skill, on_delete=models.PROTECT, related_name="+")
+    level = models.SmallIntegerField()
+    skill_level = models.ForeignKey(
+        SkillLevel, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    skill_version = models.SmallIntegerField()
+    verified_by = models.ForeignKey(
+        "identity.Person", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    note = models.TextField(blank=True, default="")
+
+    def __str__(self) -> str:
+        return f"SkillAssertion({self.membership_id}, {self.skill_id}, L{self.level})"

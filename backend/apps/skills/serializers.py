@@ -5,6 +5,7 @@ from rest_framework import serializers
 from apps.skills.models import (
     SelfDeclaredSkill,
     Skill,
+    SkillAssertion,
     SkillDomain,
     SkillEdge,
     SkillLevel,
@@ -95,3 +96,30 @@ class TenantSkillOverrideSerializer(serializers.ModelSerializer):
         model = TenantSkillOverride
         fields = ["id", "skill", "name", "status", "hidden"]
         read_only_fields = ["id", "skill"]
+
+
+class SkillAssertionSerializer(serializers.ModelSerializer):
+    """
+    A verified-tier assertion. ``skill_version``/``verified_by``/``verified_at`` are
+    server-managed (version pinned from the skill at record time).
+    """
+
+    class Meta:
+        model = SkillAssertion
+        fields = [
+            "id",
+            "membership",
+            "skill",
+            "level",
+            "skill_level",
+            "skill_version",
+            "verified_by",
+            "verified_at",
+            "note",
+        ]
+        read_only_fields = ["id", "skill_version", "verified_by", "verified_at"]
+
+    def validate_level(self, value: int) -> int:
+        if not (1 <= value <= 5):
+            raise serializers.ValidationError("level must be between 1 and 5.")
+        return value

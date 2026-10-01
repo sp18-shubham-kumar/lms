@@ -14,6 +14,7 @@ from apps.skills import services
 from apps.skills.models import (
     SelfDeclaredSkill,
     Skill,
+    SkillAssertion,
     SkillDomain,
     SkillEdge,
     SkillLevel,
@@ -21,6 +22,7 @@ from apps.skills.models import (
 )
 from apps.skills.serializers import (
     SelfDeclaredSkillSerializer,
+    SkillAssertionSerializer,
     SkillDomainSerializer,
     SkillEdgeSerializer,
     SkillLevelSerializer,
@@ -36,6 +38,7 @@ from core.permissions import HasCapability
 READ_CAPABILITY = "directory.view"
 WRITE_CAPABILITY = "taxonomy.edit"
 DECLARE_CAPABILITY = "skill.claim.submit"
+VERIFY_CAPABILITY = "skill.verify"
 
 # Actions that mutate state require taxonomy.edit; reads require directory.view.
 _WRITE_ACTIONS = {"create", "update", "partial_update", "destroy", "edges", "override", "publish"}
@@ -336,3 +339,58 @@ class SelfDeclaredSkillViewSet(
             skill_id=str(instance.skill_id),
         )
         instance.delete()
+
+
+@extend_schema_view(
+    list=extend_schema(summary="List verified skill assertions", tags=["Skills"]),
+    create=extend_schema(summary="Record a verified skill assertion", tags=["Skills"]),
+)
+@extend_schema(tags=["Skills"])
+class SkillAssertionViewSet(
+    IdempotentCreateMixin,
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    The verified tier (``skill.verify``). Recording an assertion pins the skill's current
+    ``version`` and stamps ``verified_by``/``verified_at``. This is the ONLY source the
+    readiness engine reads — self-declarations never gate readiness.
+
+    Create is idempotent via the ``Idempotency-Key`` header; writes are audited.
+    """
+
+    serializer_class = SkillAssertionSerializer
+    permission_classes = [*APIView.permission_classes, HasCapability]
+    required_capability = VERIFY_CAPABILITY
+
+    def get_queryset(self) -> Any:
+        # Tenant-scoped manager: only the current tenant's assertions are reachable.
+        return SkillAssertion.objects.select_related("skill", "membership").order_by("-created_at")
+
+    def create(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        return self.idempotent_create(
+            request, lambda: super(SkillAssertionViewSet, self).create(request)
+        )
+
+    def perform_create(self, serializer: Any) -> None:
+        from django.utils import timezone
+
+        tenant_id = get_current_tenant()
+        skill = serializer.validated_data["skill"]
+        assertion = serializer.save(
+            tenant_id=tenant_id,
+            skill_version=skill.version,  # pin the version judged
+            verified_by=self.request.user,
+            verified_at=timezone.now(),
+        )
+        audit.record(
+            actor=self.request.user,
+            action="skill.assertion.record",
+            resource=assertion,
+            tenant_id=tenant_id,
+            skill_id=str(skill.id),
+            level=assertion.level,
+        )
+        # Part B2 hook: recompute readiness for this membership from the verified tier.
+        # (profiles.services.recompute_for_membership — lands with the readiness engine.)
