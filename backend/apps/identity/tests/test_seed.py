@@ -66,3 +66,65 @@ def test_seed_demo_seeds_global_skill_domains_and_skills():
     # Global domains/skills (tenant NULL) are seeded for everyone.
     assert SkillDomain.objects.filter(tenant__isnull=True).exists()
     assert Skill.objects.filter(tenant__isnull=True).exists()
+
+
+@pytest.mark.django_db
+def test_seed_demo_creates_data_engineer_ladder():
+    """
+    After seed_demo, the Data Engineering track with L1/L2/L3 job profiles must exist,
+    skill levels for core skills must be seeded, bob's verified assertions must exist,
+    and his readiness snapshot for L2 must have met=2 and total=3.
+    """
+    from apps.identity.models import Membership, Tenant
+    from apps.profiles.models import JobProfile, ReadinessSnapshot, Track
+    from apps.skills.models import Skill, SkillAssertion, SkillLevel
+    from core.context import tenant_context
+
+    call_command("seed_demo")
+    call_command("seed_demo")  # idempotent
+
+    acme = Tenant.objects.get(slug="acme")
+
+    with tenant_context(acme.id):
+        # Track exists.
+        track = Track.objects.filter(name="Data Engineering").first()
+        assert track is not None, "Data Engineering track must be seeded"
+
+        # Three job profiles for the Data Engineering track.
+        profiles = list(JobProfile.objects.filter(track=track).order_by("grade"))
+        assert len(profiles) >= 3, f"Expected at least 3 profiles, got {len(profiles)}"
+        grades = [p.grade for p in profiles]
+        assert 1 in grades and 2 in grades and 3 in grades
+
+        # Skill levels are seeded (at least one SkillLevel for SQL, Python, Data modeling).
+        sql_skill = Skill.objects.filter(slug="sql").first()
+        assert sql_skill is not None, "SQL skill must be seeded"
+        assert SkillLevel.objects.filter(skill=sql_skill).exists(), "SQL SkillLevels must be seeded"
+
+        python_skill = Skill.objects.filter(slug="python").first()
+        assert python_skill is not None
+        assert SkillLevel.objects.filter(skill=python_skill).exists()
+
+        # Bob's assertions.
+        import django.contrib.auth
+
+        User = django.contrib.auth.get_user_model()
+        bob = User.objects.get(email="bob@acme.test")
+        bob_membership = Membership.objects.get(person=bob, tenant=acme)
+
+        # Bob should have at least 3 verified assertions (SQL, Python, Data modeling).
+        bob_assertions = SkillAssertion.objects.filter(membership=bob_membership)
+        assert (
+            bob_assertions.count() >= 3
+        ), f"Bob should have >= 3 assertions, got {bob_assertions.count()}"
+
+        # Readiness snapshot for bob against L2 profile.
+        l2_profile = JobProfile.objects.filter(track=track, grade=2).first()
+        assert l2_profile is not None
+
+        snapshot = ReadinessSnapshot.objects.filter(
+            membership=bob_membership, job_profile=l2_profile
+        ).first()
+        assert snapshot is not None, "Readiness snapshot for bob x L2 must exist"
+        assert snapshot.met == 2, f"Expected met=2, got {snapshot.met}"
+        assert snapshot.total == 3, f"Expected total=3, got {snapshot.total}"
