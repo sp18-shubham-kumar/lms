@@ -59,7 +59,7 @@ def test_skills_list_is_tenant_isolated_with_globals():
     client = APIClient()
     token = _login(client, "a@acme.test")
     resp = client.get(
-        "/api/skills/skills/",
+        "/api/skills/",
         HTTP_AUTHORIZATION=f"Bearer {token}",
         HTTP_X_TENANT_ID=str(tenant_a.id),
     )
@@ -76,7 +76,7 @@ def test_skills_list_denied_without_capability():
     client = APIClient()
     token = _login(client, "a@acme.test")
     resp = client.get(
-        "/api/skills/skills/",
+        "/api/skills/",
         HTTP_AUTHORIZATION=f"Bearer {token}",
         HTTP_X_TENANT_ID=str(tenant.id),
     )
@@ -94,12 +94,12 @@ def test_skill_retrieve_and_domains_list():
     auth = {"HTTP_AUTHORIZATION": f"Bearer {token}", "HTTP_X_TENANT_ID": str(tenant_a.id)}
 
     # retrieve own skill
-    resp = client.get(f"/api/skills/skills/{sa.id}/", **auth)
+    resp = client.get(f"/api/skills/{sa.id}/", **auth)
     assert resp.status_code == 200
     assert resp.json()["name"] == "A dbt"
 
     # cannot retrieve tenant B's skill
-    resp_b = client.get(f"/api/skills/skills/{sb.id}/", **auth)
+    resp_b = client.get(f"/api/skills/{sb.id}/", **auth)
     assert resp_b.status_code == 404
 
     # domains list includes the global domain

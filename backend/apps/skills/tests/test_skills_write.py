@@ -46,7 +46,7 @@ def test_create_skill_as_taxonomy_editor():
     client = APIClient()
     token = _login(client, "a@acme.test")
     resp = client.post(
-        "/api/skills/skills/",
+        "/api/skills/",
         {"domain": str(gd.id), "name": "dbt", "slug": "dbt"},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {token}",
@@ -66,7 +66,7 @@ def test_create_skill_denied_without_taxonomy_edit():
     client = APIClient()
     token = _login(client, "a@acme.test")
     resp = client.post(
-        "/api/skills/skills/",
+        "/api/skills/",
         {"domain": str(gd.id), "name": "dbt", "slug": "dbt"},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {token}",
@@ -88,7 +88,7 @@ def test_delete_retires_skill_without_deleting_row():
     client = APIClient()
     token = _login(client, "a@acme.test")
     resp = client.delete(
-        f"/api/skills/skills/{skill.id}/",
+        f"/api/skills/{skill.id}/",
         HTTP_AUTHORIZATION=f"Bearer {token}",
         HTTP_X_TENANT_ID=str(tenant.id),
     )
@@ -109,7 +109,7 @@ def test_cannot_write_global_skill():
     client = APIClient()
     token = _login(client, "a@acme.test")
     resp = client.patch(
-        f"/api/skills/skills/{gs.id}/",
+        f"/api/skills/{gs.id}/",
         {"name": "hacked"},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {token}",
@@ -135,8 +135,8 @@ def test_idempotent_create():
         "HTTP_X_TENANT_ID": str(tenant.id),
         "HTTP_IDEMPOTENCY_KEY": "key-1",
     }
-    r1 = client.post("/api/skills/skills/", payload, format="json", **headers)
-    r2 = client.post("/api/skills/skills/", payload, format="json", **headers)
+    r1 = client.post("/api/skills/", payload, format="json", **headers)
+    r2 = client.post("/api/skills/", payload, format="json", **headers)
     assert r1.status_code == 201
     assert r2.status_code == 201
     assert r1.json()["id"] == r2.json()["id"]

@@ -109,7 +109,7 @@ def test_publish_endpoint():
     client = APIClient()
     token = _login(client, "a@acme.test")
     resp = client.post(
-        f"/api/skills/skills/{skill.id}/publish/",
+        f"/api/skills/{skill.id}/publish/",
         HTTP_AUTHORIZATION=f"Bearer {token}",
         HTTP_X_TENANT_ID=str(tenant.id),
     )
@@ -125,7 +125,7 @@ def test_publish_endpoint_denied_without_taxonomy_edit():
     client = APIClient()
     token = _login(client, "a@acme.test")
     resp = client.post(
-        f"/api/skills/skills/{skill.id}/publish/",
+        f"/api/skills/{skill.id}/publish/",
         HTTP_AUTHORIZATION=f"Bearer {token}",
         HTTP_X_TENANT_ID=str(tenant.id),
     )

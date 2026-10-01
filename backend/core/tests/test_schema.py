@@ -11,7 +11,7 @@ def test_schema_is_200_and_includes_part_a_paths():
     paths = schema["paths"]
 
     expected = [
-        "/api/skills/skills/",
+        "/api/skills/",
         "/api/skills/me/declarations/",
         "/api/authz/grants/",
         "/api/authz/roles/",

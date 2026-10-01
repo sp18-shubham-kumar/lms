@@ -418,4 +418,6 @@ class SkillAssertionViewSet(
             # Non-fatal: readiness recompute failure must not break the assertion write.
             import logging
 
-            logging.getLogger(__name__).exception("readiness recompute failed after assertion write")
+            logging.getLogger(__name__).exception(
+                "readiness recompute failed after assertion write"
+            )

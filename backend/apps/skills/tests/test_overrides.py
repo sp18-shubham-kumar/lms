@@ -51,7 +51,7 @@ def test_put_levels_replaces_rubric_grid():
     auth = {"HTTP_AUTHORIZATION": f"Bearer {token}", "HTTP_X_TENANT_ID": str(tenant.id)}
 
     resp = client.put(
-        f"/api/skills/skills/{gs.id}/levels/",
+        f"/api/skills/{gs.id}/levels/",
         {
             "levels": [
                 {"level": 1, "title": "Beginner", "indicators": ["a"], "evidence_kinds": ["quiz"]},
@@ -66,7 +66,7 @@ def test_put_levels_replaces_rubric_grid():
 
     # Replace with a single level: grid is replaced wholesale.
     resp2 = client.put(
-        f"/api/skills/skills/{gs.id}/levels/",
+        f"/api/skills/{gs.id}/levels/",
         {"levels": [{"level": 1, "title": "Only"}]},
         format="json",
         **auth,
@@ -75,7 +75,7 @@ def test_put_levels_replaces_rubric_grid():
     assert SkillLevel.objects.filter(skill=gs).count() == 1
 
     # GET returns the grid.
-    resp3 = client.get(f"/api/skills/skills/{gs.id}/levels/", **auth)
+    resp3 = client.get(f"/api/skills/{gs.id}/levels/", **auth)
     assert resp3.status_code == 200
     assert len(resp3.json()["levels"]) == 1
 
@@ -91,7 +91,7 @@ def test_override_rename_is_copy_on_write_per_tenant():
     auth_a = {"HTTP_AUTHORIZATION": f"Bearer {token_a}", "HTTP_X_TENANT_ID": str(tenant_a.id)}
 
     resp = client.post(
-        f"/api/skills/skills/{gs.id}/override/",
+        f"/api/skills/{gs.id}/override/",
         {"name": "Acme SQL"},
         format="json",
         **auth_a,
@@ -99,7 +99,7 @@ def test_override_rename_is_copy_on_write_per_tenant():
     assert resp.status_code in (200, 201)
 
     # Tenant A sees the renamed skill.
-    list_a = client.get("/api/skills/skills/", **auth_a).json()["results"]
+    list_a = client.get("/api/skills/", **auth_a).json()["results"]
     a_row = next(r for r in list_a if r["id"] == str(gs.id))
     assert a_row["name"] == "Acme SQL"
 
@@ -111,7 +111,7 @@ def test_override_rename_is_copy_on_write_per_tenant():
     client_b = APIClient()
     token_b = _login(client_b, "b@nw.test")
     auth_b = {"HTTP_AUTHORIZATION": f"Bearer {token_b}", "HTTP_X_TENANT_ID": str(tenant_b.id)}
-    list_b = client_b.get("/api/skills/skills/", **auth_b).json()["results"]
+    list_b = client_b.get("/api/skills/", **auth_b).json()["results"]
     b_row = next(r for r in list_b if r["id"] == str(gs.id))
     assert b_row["name"] == "Global SQL"
 
@@ -127,19 +127,19 @@ def test_override_hidden_removes_skill_from_tenant_list():
     auth_a = {"HTTP_AUTHORIZATION": f"Bearer {token_a}", "HTTP_X_TENANT_ID": str(tenant_a.id)}
 
     client.post(
-        f"/api/skills/skills/{gs.id}/override/",
+        f"/api/skills/{gs.id}/override/",
         {"hidden": True},
         format="json",
         **auth_a,
     )
-    list_a = client.get("/api/skills/skills/", **auth_a).json()["results"]
+    list_a = client.get("/api/skills/", **auth_a).json()["results"]
     assert str(gs.id) not in {r["id"] for r in list_a}
 
     # Tenant B still sees it.
     client_b = APIClient()
     token_b = _login(client_b, "b@nw.test")
     auth_b = {"HTTP_AUTHORIZATION": f"Bearer {token_b}", "HTTP_X_TENANT_ID": str(tenant_b.id)}
-    list_b = client_b.get("/api/skills/skills/", **auth_b).json()["results"]
+    list_b = client_b.get("/api/skills/", **auth_b).json()["results"]
     assert str(gs.id) in {r["id"] for r in list_b}
 
 
@@ -159,7 +159,7 @@ def test_edges_endpoint_rejects_cycle_with_400():
     auth = {"HTTP_AUTHORIZATION": f"Bearer {token}", "HTTP_X_TENANT_ID": str(tenant.id)}
 
     r1 = client.post(
-        f"/api/skills/skills/{a.id}/edges/",
+        f"/api/skills/{a.id}/edges/",
         {"to_skill": str(b.id), "kind": "prerequisite"},
         format="json",
         **auth,
@@ -167,7 +167,7 @@ def test_edges_endpoint_rejects_cycle_with_400():
     assert r1.status_code in (200, 201)
 
     r2 = client.post(
-        f"/api/skills/skills/{b.id}/edges/",
+        f"/api/skills/{b.id}/edges/",
         {"to_skill": str(a.id), "kind": "prerequisite"},
         format="json",
         **auth,
@@ -175,11 +175,11 @@ def test_edges_endpoint_rejects_cycle_with_400():
     assert r2.status_code == 400
 
     # list + delete
-    r3 = client.get(f"/api/skills/skills/{a.id}/edges/", **auth)
+    r3 = client.get(f"/api/skills/{a.id}/edges/", **auth)
     assert r3.status_code == 200
     assert len(r3.json()["edges"]) == 1
     edge_id = r3.json()["edges"][0]["id"]
-    r4 = client.delete(f"/api/skills/skills/{a.id}/edges/?edge={edge_id}", **auth)
+    r4 = client.delete(f"/api/skills/{a.id}/edges/?edge={edge_id}", **auth)
     assert r4.status_code in (200, 204)
 
 
@@ -190,7 +190,7 @@ def test_override_denied_without_taxonomy_edit():
     client = APIClient()
     token = _login(client, "a@acme.test")
     resp = client.post(
-        f"/api/skills/skills/{gs.id}/override/",
+        f"/api/skills/{gs.id}/override/",
         {"name": "Nope"},
         format="json",
         HTTP_AUTHORIZATION=f"Bearer {token}",
