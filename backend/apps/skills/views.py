@@ -410,4 +410,12 @@ class SkillAssertionViewSet(
             level=assertion.level,
         )
         # Part B2 hook: recompute readiness for this membership from the verified tier.
-        # (profiles.services.recompute_for_membership — lands with the readiness engine.)
+        try:
+            from apps.profiles.services import recompute_for_membership
+
+            recompute_for_membership(assertion.membership)
+        except Exception:  # noqa: BLE001
+            # Non-fatal: readiness recompute failure must not break the assertion write.
+            import logging
+
+            logging.getLogger(__name__).exception("readiness recompute failed after assertion write")
