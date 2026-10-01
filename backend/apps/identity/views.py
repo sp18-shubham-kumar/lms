@@ -19,6 +19,7 @@ from apps.identity.models import Membership, OrgUnit, Tenant
 from apps.identity.serializers import (
     LoginSerializer,
     MembershipSummarySerializer,
+    OrgUnitSerializer,
     PersonDirectorySerializer,
     PersonSummarySerializer,
     TenantSummarySerializer,
@@ -172,6 +173,29 @@ class PeopleListView(ListAPIView):
             )
 
         return qs
+
+
+@extend_schema(
+    summary="List org units",
+    description=(
+        "List the active tenant's org units (id, name, materialised path, parent). "
+        "Lets the SPA build org-unit filters and scope the team heatmap. "
+        "Gated by directory.view."
+    ),
+    tags=["Identity"],
+)
+class OrgUnitListView(ListAPIView):
+    """Paginated list of the active tenant's org units. Gated by directory.view.
+
+    Tenant-scoped via ``OrgUnit.objects`` (fails closed with no tenant in context).
+    """
+
+    serializer_class = OrgUnitSerializer
+    permission_classes = [*APIView.permission_classes, HasCapability]
+    required_capability = "directory.view"
+
+    def get_queryset(self) -> Any:
+        return OrgUnit.objects.order_by("path", "name")
 
 
 def _read_csv_body(request: Any) -> str:

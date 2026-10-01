@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from apps.identity.models import Membership, Person, Tenant
+from apps.identity.models import Membership, OrgUnit, Person, Tenant
 
 
 class LoginSerializer(serializers.Serializer):
@@ -42,3 +42,9 @@ class PersonDirectorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Membership
         fields = ["id", "email", "display_name", "org_unit", "status"]
+
+
+class OrgUnitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrgUnit
+        fields = ["id", "name", "path", "parent"]
