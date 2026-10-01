@@ -1,19 +1,58 @@
-import { render, screen } from '@testing-library/react'
-import { expect, test } from 'vitest'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { fireEvent, render, screen } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { beforeEach, expect, test, vi } from 'vitest'
 
+import { api } from '../../lib/api'
+import * as authModule from '../../lib/auth'
+import * as tenantModule from '../../lib/tenant'
 import { RoadmapHome } from './RoadmapHome'
 
-test('shows the target grade, readiness, and the current step with its next resource', () => {
-  render(<RoadmapHome />)
+function wrap(ui: ReactNode) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return <QueryClientProvider client={qc}>{ui}</QueryClientProvider>
+}
 
-  expect(screen.getByRole('heading', { name: /Data Engineer · L2/ })).toBeInTheDocument()
-  expect(screen.getByLabelText(/Readiness 68 percent/)).toBeInTheDocument()
+function mockAuth(cap: boolean) {
+  vi.spyOn(authModule, 'useAuth').mockReturnValue({ hasCapability: () => cap } as never)
+  vi.spyOn(tenantModule, 'useTenant').mockReturnValue({
+    tenant: { id: 't1', name: 'Acme' },
+    setTenant: vi.fn(),
+  } as never)
+}
 
-  // The current step is raised with its "do this next" resource.
-  expect(screen.getByText(/Now · Python → Proficient/)).toBeInTheDocument()
-  expect(screen.getByText('Intermediate Python for Data')).toBeInTheDocument()
+const readiness = {
+  job_profile: 'p2',
+  readiness_pct: 50,
+  met: 1,
+  total: 2,
+  requirements: [
+    { skill_id: 's1', skill_name: 'SQL', criticality: 'core', min_level: 2, current_level: 2, status: 'met' },
+    { skill_id: 's2', skill_name: 'Python', criticality: 'core', min_level: 2, current_level: 1, status: 'close' },
+  ],
+}
 
-  // The first upcoming step is labelled "Next", later ones "Then".
-  expect(screen.getByText(/Next · dbt → Working/)).toBeInTheDocument()
-  expect(screen.getByText(/Then · Kafka → Aware/)).toBeInTheDocument()
+beforeEach(() => {
+  vi.spyOn(api, 'get').mockImplementation((async (url: string) => {
+    if (url.includes('job-profiles'))
+      return { data: { count: 1, next: null, previous: null, results: [{ id: 'p2', title: 'Data Engineer L2' }] } }
+    return { data: readiness }
+  }) as never)
+})
+
+test('learner without jobprofile.edit sees guidance, not a picker', () => {
+  mockAuth(false)
+  render(wrap(<RoadmapHome />))
+  expect(screen.getByText(/target grade hasn’t been shared/i)).toBeInTheDocument()
+})
+
+test('picking a target renders real readiness', async () => {
+  mockAuth(true)
+  render(wrap(<RoadmapHome />))
+  // Wait for the profiles to load so the option exists before selecting it.
+  await screen.findByRole('option', { name: 'Data Engineer L2' })
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p2' } })
+  expect(await screen.findByLabelText(/Readiness 50 percent/)).toBeInTheDocument()
+  expect(screen.getByText(/1 of 2 core requirements met/)).toBeInTheDocument()
+  expect(screen.getByText(/Now · Python/)).toBeInTheDocument()
 })

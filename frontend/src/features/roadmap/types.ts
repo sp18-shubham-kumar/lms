@@ -47,3 +47,34 @@ export interface Roadmap {
   milestonesTotal: number
   steps: RoadmapStep[]
 }
+
+// --- API shapes (GET /api/profiles/*) --------------------------------------
+
+export interface JobProfile {
+  id: string
+  tenant: string
+  track: string
+  grade: number
+  title: string
+  status: string
+  version: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ReadinessRequirement {
+  skill_id: string
+  skill_name: string
+  criticality: string
+  min_level: number
+  current_level: number | null
+  status: 'met' | 'close' | 'not_started'
+}
+
+export interface Readiness {
+  job_profile: string
+  readiness_pct: number
+  met: number
+  total: number
+  requirements: ReadinessRequirement[]
+}

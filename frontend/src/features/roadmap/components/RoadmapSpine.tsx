@@ -63,7 +63,7 @@ export function RoadmapSpine({ steps }: RoadmapSpineProps) {
                   className="mt-3 rounded-lg px-3.5 py-1.5 text-[13px] font-semibold text-white"
                   style={{ backgroundColor: 'var(--tenant-accent)' }}
                 >
-                  Continue module {step.resource ? step.resource.modulesDone + 1 : ''}
+                  {step.resource ? `Continue module ${step.resource.modulesDone + 1}` : `Work on ${step.skill}`}
                 </button>
               </div>
             </li>
