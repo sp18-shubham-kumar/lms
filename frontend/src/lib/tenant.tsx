@@ -35,7 +35,8 @@ interface TenantContextValue {
 const TenantContext = createContext<TenantContextValue | null>(null)
 
 function applyTheme(tenant: Tenant | null): void {
-  const accent = tenant?.accentColor ?? '#4f46e5'
+  // Defaults to the Path teal; a tenant's own accent still overrides it.
+  const accent = tenant?.accentColor ?? '#0d9488'
   document.documentElement.style.setProperty('--tenant-accent', accent)
 }
 

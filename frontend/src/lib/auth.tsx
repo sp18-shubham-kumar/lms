@@ -24,6 +24,12 @@ interface AuthContextValue {
   loadSession: () => Promise<void>
   logout: () => void
   hasCapability: (capability: string) => boolean
+  /**
+   * Dev-only: seed a mock learner session so the UI is viewable without a
+   * running backend. Surfaced behind an `import.meta.env.DEV` gate in the UI
+   * (LoginPage). Remove once the real login flow is wired end-to-end.
+   */
+  enterDemo: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -57,6 +63,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null)
   }, [])
 
+  // Dev-only demo session. No tokens, no network — just enough capabilities to
+  // render the learner-facing screens (My path, Skills, Directory).
+  const enterDemo = useCallback(() => {
+    setSession({
+      capabilities: ['directory.view', 'skill.claim.submit'],
+      displayName: 'Priya Nair',
+    })
+  }, [])
+
   // Hydrate capabilities on app mount when a token + tenant are already persisted
   // (hard refresh / new tab). Must run exactly once; failure clears the session so
   // ProtectedRoute redirects to /login. We cannot call useNavigate here because
@@ -81,8 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loadSession,
       logout,
       hasCapability,
+      enterDemo,
     }),
-    [session, bootstrapping, login, loadSession, logout, hasCapability],
+    [session, bootstrapping, login, loadSession, logout, hasCapability, enterDemo],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
