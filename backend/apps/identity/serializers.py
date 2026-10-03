@@ -96,6 +96,27 @@ class LoginResponseSerializer(serializers.Serializer):
     memberships = MembershipSummarySerializer(
         many=True, help_text="Tenants the person can act in. Use a `tenant_id` as X-Tenant-Id."
     )
+    is_platform_operator = serializers.BooleanField(
+        help_text="True for platform operators, who can create tenants under /api/platform/."
+    )
+
+
+class AccountSerializer(serializers.Serializer):
+    """The signed-in person independent of any tenant."""
+
+    person = PersonSummarySerializer()
+    memberships = MembershipSummarySerializer(many=True)
+    is_platform_operator = serializers.BooleanField()
+
+
+class PlatformTenantSerializer(serializers.ModelSerializer):
+    """A tenant as listed to platform operators."""
+
+    member_count = serializers.IntegerField(help_text="Active memberships.")
+
+    class Meta:
+        model = Tenant
+        fields = ["id", "name", "slug", "status", "accent_color", "created_at", "member_count"]
 
 
 class SessionSerializer(serializers.Serializer):
@@ -117,6 +138,9 @@ class InvitationPayloadSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=Invitation.Status.choices)
     expires_at = serializers.DateTimeField()
     token = serializers.CharField(required=False, help_text="Raw accept token, returned once.")
+    invite_url = serializers.URLField(
+        required=False, help_text="Accept link for the token, returned with it."
+    )
 
 
 class InvitationAcceptResponseSerializer(serializers.Serializer):

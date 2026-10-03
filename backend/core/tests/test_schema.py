@@ -110,7 +110,13 @@ def test_tenant_header_is_required_only_where_membership_is_enforced():
         assert "tenantHeader" not in _operation_security(schema, method, path), path
 
     # Platform operators provision tenants they don't belong to: JWT only.
-    assert _operation_security(schema, "post", "/api/platform/tenants/") == {"jwtAuth"}
+    # The account endpoint restores a tenantless session. Also JWT only.
+    for method, path in [
+        ("get", "/api/platform/tenants/"),
+        ("post", "/api/platform/tenants/"),
+        ("get", "/api/auth/me/"),
+    ]:
+        assert _operation_security(schema, method, path) == {"jwtAuth"}, path
 
 
 @pytest.mark.django_db
@@ -127,4 +133,5 @@ def test_login_documents_its_request_and_token_response():
         "access",
         "refresh",
         "memberships",
+        "is_platform_operator",
     }

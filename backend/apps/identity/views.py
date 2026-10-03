@@ -9,7 +9,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.generics import ListAPIView
 from rest_framework.parsers import BaseParser
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -17,7 +17,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.identity import import_service
 from apps.identity.invitation_service import InvitationError, accept_invitation
 from apps.identity.models import Membership, OrgUnit, Tenant
+from apps.identity.platform_views import is_platform_operator
 from apps.identity.serializers import (
+    AccountSerializer,
     InvitationAcceptResponseSerializer,
     InvitationAcceptSerializer,
     LoginResponseSerializer,
@@ -77,11 +79,10 @@ class LoginView(APIView):
         )
         if person is None:
             raise AuthenticationFailed("Invalid email or password.")
-        memberships = list(
-            Membership.all_tenants.filter(person=person, status="active").select_related("tenant")
-        )
+        memberships = _active_memberships(person)
+        operator = is_platform_operator(person)
         # A platform operator provisions tenants and may have no membership yet.
-        if not memberships and not (person.is_staff and person.is_superuser):
+        if not memberships and not operator:
             raise PermissionDenied("You have no active membership in any organization.")
         refresh = RefreshToken.for_user(person)
         audit.record(actor=person, action="auth.login")
@@ -90,6 +91,38 @@ class LoginView(APIView):
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
                 "memberships": MembershipSummarySerializer(memberships, many=True).data,
+                "is_platform_operator": operator,
+            }
+        )
+
+
+def _active_memberships(person: Any) -> list[Membership]:
+    return list(
+        Membership.all_tenants.filter(person=person, status="active").select_related("tenant")
+    )
+
+
+@extend_schema(
+    summary="Current account",
+    description=(
+        "The signed-in person without a tenant: their active memberships and whether "
+        "they are a platform operator. Needs the JWT only; send no X-Tenant-Id. The SPA "
+        "uses it to restore a session that has no tenant selected."
+    ),
+    tags=["Identity"],
+    responses=AccountSerializer,
+)
+class AccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Any) -> Response:
+        return Response(
+            {
+                "person": PersonSummarySerializer(request.user).data,
+                "memberships": MembershipSummarySerializer(
+                    _active_memberships(request.user), many=True
+                ).data,
+                "is_platform_operator": is_platform_operator(request.user),
             }
         )
 
@@ -138,11 +171,7 @@ class SessionView(APIView):
     def get(self, request):
         tenant_id = get_current_tenant()
         tenant = Tenant.objects.get(id=tenant_id)
-        memberships = list(
-            Membership.all_tenants.filter(person=request.user, status="active").select_related(
-                "tenant"
-            )
-        )
+        memberships = _active_memberships(request.user)
         return Response(
             {
                 "person": PersonSummarySerializer(request.user).data,
