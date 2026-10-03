@@ -9,9 +9,6 @@ DEBUG = True
 # localhost port in dev so login isn't silently blocked by CORS.
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^http://(localhost|127\.0\.0\.1):\d+$"]
 
-# Invitation emails print in the runserver terminal, including the accept link.
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-
 # Browsable API is convenient locally.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,

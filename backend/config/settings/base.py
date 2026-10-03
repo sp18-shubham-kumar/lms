@@ -23,6 +23,13 @@ env = environ.Env(
     JWT_REFRESH_DAYS=(int, 7),
     EMAIL_BACKEND=(str, "django.core.mail.backends.console.EmailBackend"),
     DEFAULT_FROM_EMAIL=(str, "noreply@localhost"),
+    EMAIL_HOST=(str, "localhost"),
+    EMAIL_PORT=(int, 25),
+    EMAIL_HOST_USER=(str, ""),
+    EMAIL_HOST_PASSWORD=(str, ""),
+    EMAIL_USE_TLS=(bool, False),
+    EMAIL_USE_SSL=(bool, False),
+    EMAIL_TIMEOUT=(int, 10),
     FRONTEND_ORIGIN=(str, "http://localhost:5173"),
     INVITATION_DAYS=(int, 7),
 )
@@ -195,9 +202,18 @@ CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_HEADERS = (*default_headers, "x-tenant-id", "idempotency-key")
 
 # --- Mail -------------------------------------------------------------------
-# Dev prints invitation links in the server log. Point EMAIL_BACKEND at SMTP to send them.
+# By default invitation links print in the server log. To send real mail set
+# EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend plus the EMAIL_HOST* values.
 EMAIL_BACKEND = env("EMAIL_BACKEND")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
+EMAIL_HOST = env("EMAIL_HOST")
+EMAIL_PORT = env("EMAIL_PORT")
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = env("EMAIL_USE_TLS")
+EMAIL_USE_SSL = env("EMAIL_USE_SSL")
+# Bounds how long an invite request can hang on an unreachable mail server.
+EMAIL_TIMEOUT = env("EMAIL_TIMEOUT")
 FRONTEND_ORIGIN = env("FRONTEND_ORIGIN")
 INVITATION_DAYS = env("INVITATION_DAYS")
 
