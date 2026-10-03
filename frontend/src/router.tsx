@@ -18,6 +18,8 @@ import { ChooseTenantPage } from './pages/ChooseTenantPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DirectoryPage } from './pages/DirectoryPage'
 import { FrameworkPage } from './pages/FrameworkPage'
+import { LearningManagePage } from './pages/LearningManagePage'
+import { LearningPage } from './pages/LearningPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PlatformPage } from './pages/PlatformPage'
@@ -42,6 +44,8 @@ export const router = createBrowserRouter([
           { path: '/directory', element: <DirectoryPage /> },
           { path: '/people/:personId', element: <ProfilePage /> },
           { path: '/skills', element: <SkillsPage /> },
+          { path: '/learning', element: <LearningPage /> },
+          { path: '/learning/manage', element: <LearningManagePage /> },
           { path: '/team', element: <TeamPage /> },
           { path: '/framework', element: <FrameworkPage /> },
           { path: '/framework/skills/:id', element: <SkillEditorPage /> },

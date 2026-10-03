@@ -22,6 +22,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'My path' },
   { to: '/skills', label: 'Skills', capability: 'skill.claim.submit' },
   { to: '/directory', label: 'Directory', capability: 'directory.view' },
+  { to: '/learning', label: 'Learning', capability: 'directory.view' },
   { to: '/team', label: 'Team', capability: 'report.org.view' },
   { to: '/framework', label: 'Framework', capability: 'taxonomy.edit' },
   { to: '/verify', label: 'Verify', capability: 'skill.verify' },

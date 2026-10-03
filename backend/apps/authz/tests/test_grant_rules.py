@@ -31,7 +31,10 @@ def test_capability_list_returns_seeded_keys():
     resp = _call("get", "/api/authz/capabilities/", tenant)
 
     assert resp.status_code == 200
-    assert [row["key"] for row in resp.json()] == ["member.invite", "skill.verify"]
+    keys = [row["key"] for row in resp.json()]
+    # Migrations seed capabilities too (e.g. resource.edit), so check ours are listed, in order.
+    assert {"member.invite", "skill.verify"} <= set(keys)
+    assert keys == sorted(keys)
 
 
 @pytest.mark.django_db

@@ -29,6 +29,7 @@ api_patterns = [
     path("authz/", include("apps.authz.urls")),
     path("skills/", include("apps.skills.urls")),
     path("profiles/", include("apps.profiles.urls")),
+    path("learning/", include("apps.learning.urls")),
 ]
 
 urlpatterns = [

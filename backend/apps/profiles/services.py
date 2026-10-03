@@ -284,3 +284,22 @@ def recompute_for_membership(membership: Any) -> None:
 
     for profile in JobProfile.all_tenants.filter(id__in=all_profile_ids):
         compute_readiness(membership, profile)
+
+
+def best_verified_levels(membership: Any) -> dict[Any, int]:
+    """
+    Return ``{skill_id: highest verified level}`` for a membership.
+
+    The verified tier is the only readiness source, so other modules that reason
+    about a learner's gaps (e.g. learning recommendations) read levels here rather
+    than querying ``SkillAssertion`` directly.
+    """
+    from apps.skills.models import SkillAssertion
+
+    levels: dict[Any, int] = {}
+    for skill_id, level in SkillAssertion.all_tenants.filter(membership=membership).values_list(
+        "skill_id", "level"
+    ):
+        if level > levels.get(skill_id, 0):
+            levels[skill_id] = level
+    return levels
