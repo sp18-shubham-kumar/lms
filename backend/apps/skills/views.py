@@ -33,6 +33,7 @@ from apps.skills.serializers import (
     SkillLevelSerializer,
     SkillLevelsReplaceSerializer,
     SkillSerializer,
+    TenantSkillOverrideListSerializer,
     TenantSkillOverrideSerializer,
 )
 from core import audit
@@ -507,6 +508,26 @@ class SkillAssertionViewSet(
             note=data.get("note", ""),
             skill_level=data.get("skill_level"),
         )
+
+
+@extend_schema_view(
+    list=extend_schema(summary="List this tenant's skill overrides", tags=["Skills"])
+)
+@extend_schema(tags=["Skills"])
+class TenantSkillOverrideViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """
+    The current tenant's skill overrides (``taxonomy.edit``), including hidden ones —
+    the only way back to a skill the tenant hid, since hidden skills drop out of every
+    skill read. Writes go through ``POST /skills/{id}/override/``.
+    """
+
+    serializer_class = TenantSkillOverrideListSerializer
+    permission_classes = [*APIView.permission_classes, HasCapability]
+    required_capability = WRITE_CAPABILITY
+
+    def get_queryset(self) -> Any:
+        # Tenant-scoped manager: another tenant's overrides are unreachable.
+        return TenantSkillOverride.objects.select_related("skill").order_by("skill__name")
 
 
 CLAIM_STATUS_FILTERS = {*SelfDeclaredSkill.ReviewStatus.values, "all"}

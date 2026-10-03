@@ -98,6 +98,16 @@ class TenantSkillOverrideSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "skill"]
 
 
+class TenantSkillOverrideListSerializer(TenantSkillOverrideSerializer):
+    """An override with the overridden skill's own (un-renamed) name, for admin lists."""
+
+    skill_name = serializers.CharField(source="skill.name", read_only=True)
+
+    class Meta(TenantSkillOverrideSerializer.Meta):
+        fields = [*TenantSkillOverrideSerializer.Meta.fields, "skill_name"]
+        read_only_fields = fields
+
+
 class SkillAssertionSerializer(serializers.ModelSerializer):
     """
     A verified-tier assertion. ``skill_version``/``verified_by``/``verified_at`` are

@@ -357,3 +357,31 @@ def test_claim_queue_rejects_unknown_status_filter():
     tenant, _, _ = _seed_tenant("acme", "v@acme.test", ["skill.verify"])
     resp = _auth("v@acme.test", tenant).get("/api/skills/claims/?status=bogus")
     assert resp.status_code == 400
+
+
+# --- Overrides --------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_override_list_keeps_hidden_skills_reachable_and_is_isolated():
+    tenant_a, _, _ = _seed_tenant("acme", "a@acme.test", AUTHOR_CAPS)
+    tenant_b, _, _ = _seed_tenant("nw", "b@nw.test", AUTHOR_CAPS)
+    gs = _global_skill()
+    client_a = _auth("a@acme.test", tenant_a)
+    hidden = client_a.post(f"/api/skills/{gs.id}/override/", {"hidden": True}, format="json")
+    assert hidden.status_code == 200
+
+    # Hidden from skill reads, but listed (with its real name) under overrides.
+    assert str(gs.id) not in {s["id"] for s in client_a.get("/api/skills/").json()["results"]}
+    rows = client_a.get("/api/skills/overrides/").json()["results"]
+    assert [(r["skill"], r["skill_name"], r["hidden"]) for r in rows] == [
+        (str(gs.id), "Global SQL", True)
+    ]
+
+    assert _auth("b@nw.test", tenant_b).get("/api/skills/overrides/").json()["results"] == []
+
+
+@pytest.mark.django_db
+def test_override_list_denied_without_taxonomy_edit():
+    tenant, _, _ = _seed_tenant("acme", "a@acme.test", ["directory.view"])
+    assert _auth("a@acme.test", tenant).get("/api/skills/overrides/").status_code == 403
