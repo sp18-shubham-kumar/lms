@@ -37,13 +37,24 @@ beforeEach(() => {
   vi.spyOn(api, 'get').mockImplementation((async (url: string) => {
     if (url.includes('roles'))
       return page([
-        { id: 'r1', name: 'Tenant Admin', is_system: false, capabilities: [] },
-        { id: 'r2', name: 'Learner', is_system: true, capabilities: [] },
+        {
+          id: 'r1',
+          name: 'Tenant Admin',
+          is_system: true,
+          capabilities: ['directory.view', 'member.invite', 'member.offboard'],
+        },
+        { id: 'r2', name: 'Learner', is_system: true, capabilities: ['directory.view'] },
       ])
     return page([PENDING])
   }) as never)
 })
 afterEach(() => vi.restoreAllMocks())
+
+test('defaults to the least-privileged role, not admin', async () => {
+  renderPanel()
+  expect(await screen.findByRole('option', { name: 'Learner' })).toBeInTheDocument()
+  expect(screen.getByLabelText('Role')).toHaveValue('Learner')
+})
 
 test('invites an email into the chosen role and shows the accept link', async () => {
   const post = vi.spyOn(api, 'post').mockResolvedValue({
@@ -53,13 +64,13 @@ test('invites an email into the chosen role and shows the accept link', async ()
   renderPanel()
 
   await user.type(screen.getByLabelText('Email'), 'new@acme.test')
-  await user.selectOptions(await screen.findByLabelText('Role'), 'Learner')
+  await user.selectOptions(await screen.findByLabelText('Role'), 'Tenant Admin')
   await user.click(screen.getByRole('button', { name: 'Send invite' }))
 
   expect(await screen.findByLabelText('Accept link')).toHaveValue('http://x/accept?token=t')
   expect(post).toHaveBeenCalledWith('/identity/invitations/', {
     email: 'new@acme.test',
-    role: 'Learner',
+    role: 'Tenant Admin',
   })
 })
 

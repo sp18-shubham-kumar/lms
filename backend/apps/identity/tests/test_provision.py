@@ -197,3 +197,25 @@ def test_provision_rejects_a_duplicate_slug_and_non_operators():
 
     anon = client.post("/api/platform/tenants/", BODY, format="json")
     assert anon.status_code == 401
+
+
+@pytest.mark.django_db
+def test_new_tenant_has_a_learner_role_so_invites_need_not_grant_admin():
+    from apps.authz.models import Role, RoleCapability
+    from apps.identity.models import Tenant
+    from core.context import tenant_context
+
+    _operator()
+    client = APIClient()
+    resp = client.post("/api/platform/tenants/", BODY, format="json", **_auth(client))
+    assert resp.status_code == 201
+
+    tenant = Tenant.objects.get(slug="sked")
+    with tenant_context(tenant.id):
+        assert set(Role.objects.values_list("name", flat=True)) == {"Tenant Admin", "Learner"}
+        learner_caps = set(
+            RoleCapability.objects.filter(role__name="Learner").values_list(
+                "capability__key", flat=True
+            )
+        )
+    assert learner_caps == {"directory.view", "skill.claim.submit"}

@@ -10,6 +10,7 @@ import { useState, type FormEvent } from 'react'
 import { CopyField } from '../../components/CopyField'
 import { apiErrorMessage } from '../../lib/errors'
 import { useRoles } from '../admin/api'
+import type { Role } from '../admin/types'
 import {
   useCancelInvitation,
   useCreateInvitation,
@@ -17,6 +18,14 @@ import {
   useResendInvitation,
 } from './api'
 import type { Invitation } from './types'
+
+/** Invite with the least access by default; admin should be a deliberate pick. */
+function leastPrivileged(roles: Role[]): Role | undefined {
+  return roles.reduce<Role | undefined>(
+    (best, r) => (!best || r.capabilities.length < best.capabilities.length ? r : best),
+    undefined,
+  )
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
@@ -36,7 +45,7 @@ export function InvitationsPanel() {
   const [error, setError] = useState<string | null>(null)
 
   const roleOptions = roles.data ?? []
-  const selectedRole = role || roleOptions[0]?.name || ''
+  const selectedRole = role || leastPrivileged(roleOptions)?.name || ''
 
   const run = async (action: () => Promise<Invitation | void>, fallback: string) => {
     setError(null)
