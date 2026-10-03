@@ -18,6 +18,7 @@ CAPABILITIES = [
     "credential.revoke",
     "taxonomy.edit",
     "jobprofile.edit",
+    "resource.edit",
     "report.org.view",
 ]
 # The capabilities Part A/B endpoints gate on (reconciled below; superset is fine).
@@ -116,6 +117,35 @@ DATA_ENGINEER_PROFILES: list[tuple[str, int, list[tuple[str, int, str]]]] = [
     ),
 ]
 
+# Acme's resource library: (title, kind, provider, url, modules, minutes, [(skill_slug, level)])
+LEARNING_RESOURCES: list[tuple[str, str, str, str, int, int, list[tuple[str, int]]]] = [
+    ("Intermediate Python for Data", "course", "Acme Academy", "", 6, 240, [("python", 2)]),
+    ("Python Testing and Packaging", "course", "Acme Academy", "", 5, 180, [("python", 3)]),
+    (
+        "Window Functions in Practice",
+        "article",
+        "Mode",
+        "https://mode.com/sql-tutorial/sql-window-functions",
+        1,
+        25,
+        [("sql", 3)],
+    ),
+    (
+        "dbt Fundamentals",
+        "course",
+        "dbt Labs",
+        "https://learn.getdbt.com/courses/dbt-fundamentals",
+        5,
+        300,
+        [("dbt", 1), ("sql", 2)],
+    ),
+    ("The Data Warehouse Toolkit", "book", "Kimball", "", 12, 900, [("data-modeling", 3)]),
+    ("Kafka in 30 Minutes", "video", "Confluent", "", 1, 30, [("kafka", 1)]),
+]
+
+# Bob's self-reported progress: (resource title, completed modules)
+BOB_PROGRESS: list[tuple[str, int]] = [("Intermediate Python for Data", 2)]
+
 # Bob's verified assertions: (skill_slug, level)
 BOB_ASSERTIONS: list[tuple[str, int]] = [
     ("sql", 2),
@@ -149,6 +179,7 @@ class Command(BaseCommand):
 
         self._data_engineer_ladder(acme, bob)
         self._seed_org_unit(acme, [alice, bob, dana])
+        self._learning_resources(acme, bob)
 
         self.stdout.write(self.style.SUCCESS("seed_demo complete."))
 
@@ -175,6 +206,47 @@ class Command(BaseCommand):
                     membership.save(update_fields=["org_unit"])
                 if l2 is not None:
                     compute_readiness(membership, l2)
+
+    def _learning_resources(self, tenant: Tenant, bob: Person) -> None:
+        """Seed a small resource library linked to the global skills, plus Bob's progress."""
+        from django.utils import timezone
+
+        from apps.learning.models import LearningProgress, LearningResource, ResourceSkill
+
+        with tenant_context(tenant.id):
+            for title, kind, provider, url, modules, minutes, links in LEARNING_RESOURCES:
+                resource, _ = LearningResource.objects.get_or_create(
+                    tenant=tenant,
+                    title=title,
+                    defaults={
+                        "kind": kind,
+                        "provider": provider,
+                        "url": url,
+                        "module_count": modules,
+                        "duration_minutes": minutes,
+                        "status": "published",
+                    },
+                )
+                for skill_slug, level in links:
+                    skill = Skill.objects.filter(tenant__isnull=True, slug=skill_slug).first()
+                    if skill is not None:
+                        ResourceSkill.objects.get_or_create(
+                            tenant=tenant, resource=resource, skill=skill, defaults={"level": level}
+                        )
+
+            bob_membership = Membership.objects.get(person=bob, tenant=tenant)
+            for title, done in BOB_PROGRESS:
+                resource = LearningResource.objects.get(title=title)
+                LearningProgress.objects.get_or_create(
+                    tenant=tenant,
+                    membership=bob_membership,
+                    resource=resource,
+                    defaults={
+                        "status": "in_progress",
+                        "completed_modules": done,
+                        "started_at": timezone.now(),
+                    },
+                )
 
     def _global_skills(self) -> None:
         # Globals (tenant NULL) use the unscoped default manager; no tenant context needed.

@@ -42,10 +42,15 @@ def _global_skill():
 
 @pytest.mark.django_db
 def test_put_levels_replaces_rubric_grid():
-    from apps.skills.models import SkillLevel
+    from apps.skills.models import Skill, SkillDomain, SkillLevel
+    from core.context import tenant_context
 
     tenant, _ = _seed_tenant("acme", "a@acme.test", ["directory.view", "taxonomy.edit"])
-    gs = _global_skill()
+    # The rubric belongs to a draft tenant skill: globals are read-only to tenants and
+    # published versions are immutable (see test_framework_api.py).
+    with tenant_context(tenant.id):
+        gd = SkillDomain.objects.create(tenant=tenant, name="D")
+        gs = Skill.objects.create(tenant=tenant, domain=gd, name="SQL", slug="sql")
     client = APIClient()
     token = _login(client, "a@acme.test")
     auth = {"HTTP_AUTHORIZATION": f"Bearer {token}", "HTTP_X_TENANT_ID": str(tenant.id)}

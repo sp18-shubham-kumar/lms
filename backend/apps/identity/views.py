@@ -9,7 +9,7 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.generics import ListAPIView
 from rest_framework.parsers import BaseParser
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -17,19 +17,25 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.identity import import_service
 from apps.identity.invitation_service import InvitationError, accept_invitation
 from apps.identity.models import Membership, OrgUnit, Tenant
+from apps.identity.platform_views import is_platform_operator
 from apps.identity.serializers import (
+    AccountSerializer,
+    InvitationAcceptResponseSerializer,
     InvitationAcceptSerializer,
+    LoginResponseSerializer,
     LoginSerializer,
     MembershipSummarySerializer,
     OrgUnitSerializer,
     PersonDirectorySerializer,
     PersonSummarySerializer,
+    SessionSerializer,
     TenantSummarySerializer,
 )
 from apps.skills.models import SelfDeclaredSkill
 from core import audit
 from core.context import get_current_tenant
 from core.idempotency import idempotent
+from core.params import uuid_param
 from core.permissions import HasCapability, capabilities_for
 
 
@@ -44,6 +50,17 @@ class CSVParser(BaseParser):
         return stream.read().decode("utf-8")
 
 
+@extend_schema(
+    summary="Log in",
+    description=(
+        "Public. Exchanges email + password for a JWT pair and the person's active "
+        "memberships. Send no X-Tenant-Id. Use `access` as the Bearer token and a "
+        "membership's `tenant_id` as X-Tenant-Id on every later call."
+    ),
+    tags=["Identity"],
+    request=LoginSerializer,
+    responses=LoginResponseSerializer,
+)
 class LoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes: list = []
@@ -63,11 +80,10 @@ class LoginView(APIView):
         )
         if person is None:
             raise AuthenticationFailed("Invalid email or password.")
-        memberships = list(
-            Membership.all_tenants.filter(person=person, status="active").select_related("tenant")
-        )
+        memberships = _active_memberships(person)
+        operator = is_platform_operator(person)
         # A platform operator provisions tenants and may have no membership yet.
-        if not memberships and not (person.is_staff and person.is_superuser):
+        if not memberships and not operator:
             raise PermissionDenied("You have no active membership in any organization.")
         refresh = RefreshToken.for_user(person)
         audit.record(actor=person, action="auth.login")
@@ -75,7 +91,40 @@ class LoginView(APIView):
             {
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
+                "person": PersonSummarySerializer(person).data,
                 "memberships": MembershipSummarySerializer(memberships, many=True).data,
+                "is_platform_operator": operator,
+            }
+        )
+
+
+def _active_memberships(person: Any) -> list[Membership]:
+    return list(
+        Membership.all_tenants.filter(person=person, status="active").select_related("tenant")
+    )
+
+
+@extend_schema(
+    summary="Current account",
+    description=(
+        "The signed-in person without a tenant: their active memberships and whether "
+        "they are a platform operator. Needs the JWT only; send no X-Tenant-Id. The SPA "
+        "uses it to restore a session that has no tenant selected."
+    ),
+    tags=["Identity"],
+    responses=AccountSerializer,
+)
+class AccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Any) -> Response:
+        return Response(
+            {
+                "person": PersonSummarySerializer(request.user).data,
+                "memberships": MembershipSummarySerializer(
+                    _active_memberships(request.user), many=True
+                ).data,
+                "is_platform_operator": is_platform_operator(request.user),
             }
         )
 
@@ -88,6 +137,7 @@ class LoginView(APIView):
     ),
     tags=["Identity"],
     request=InvitationAcceptSerializer,
+    responses=InvitationAcceptResponseSerializer,
 )
 class InvitationAcceptView(APIView):
     """The join path for a pending invitation, including the first tenant admin."""
@@ -108,23 +158,29 @@ class InvitationAcceptView(APIView):
         return Response(payload)
 
 
+@extend_schema(
+    summary="Current session",
+    description=(
+        "The caller's person, the active tenant, the capability keys they hold in it, "
+        "and all their active memberships. The SPA gates navigation on `capabilities`."
+    ),
+    tags=["Identity"],
+    responses=SessionSerializer,
+)
 class SessionView(APIView):
     """Who am I, in this tenant. Default permissions require auth + membership."""
 
     def get(self, request):
         tenant_id = get_current_tenant()
         tenant = Tenant.objects.get(id=tenant_id)
-        memberships = list(
-            Membership.all_tenants.filter(person=request.user, status="active").select_related(
-                "tenant"
-            )
-        )
+        memberships = _active_memberships(request.user)
         return Response(
             {
                 "person": PersonSummarySerializer(request.user).data,
                 "tenant": TenantSummarySerializer(tenant).data,
                 "capabilities": sorted(capabilities_for(request.user, tenant_id)),
                 "memberships": MembershipSummarySerializer(memberships, many=True).data,
+                "is_platform_operator": is_platform_operator(request.user),
             }
         )
 
@@ -133,11 +189,15 @@ class SessionView(APIView):
     summary="List directory members",
     description=(
         "Paginated directory of the active tenant's ACTIVE members. "
-        "Optional filters: ``skill`` (members who declared it), ``level`` "
-        "(minimum declared level, use with ``skill``), ``org_unit`` (subtree)."
+        "Optional filters: ``q`` (name or email contains), ``skill`` (members who "
+        "declared it), ``level`` (minimum declared level, use with ``skill``), "
+        "``org_unit`` (subtree)."
     ),
     tags=["Identity"],
     parameters=[
+        OpenApiParameter(
+            "q", OpenApiTypes.STR, description="Case-insensitive name or email substring."
+        ),
         OpenApiParameter(
             "skill", OpenApiTypes.UUID, description="Filter to members who declared this skill."
         ),
@@ -160,7 +220,9 @@ class PeopleListView(ListAPIView):
     are hidden per spec (data-model.md: "Ending a membership hides the person from
     tenant reports").
 
-    Supports filters ``?skill=&org_unit=&level=``:
+    Supports filters ``?q=&skill=&org_unit=&level=``:
+
+    - ``q``: case-insensitive substring of the member's display name or email.
 
     - ``skill`` (and optional minimum ``level``): members who hold the skill. Phase 1
       reads the self-declared tier (``SelfDeclaredSkill``). **Part B switch:** once the
@@ -184,7 +246,13 @@ class PeopleListView(ListAPIView):
         )
         params = self.request.query_params
 
-        skill_id = params.get("skill")
+        search = params.get("q", "").strip()
+        if search:
+            qs = qs.filter(
+                Q(person__display_name__icontains=search) | Q(person__email__icontains=search)
+            )
+
+        skill_id = uuid_param(self.request, "skill")
         if skill_id:
             # Phase 1: self-declared tier. Part B: switch to verified SkillAssertion.
             declared = SelfDeclaredSkill.objects.filter(skill_id=skill_id)
@@ -193,7 +261,7 @@ class PeopleListView(ListAPIView):
                 declared = declared.filter(level__gte=level)
             qs = qs.filter(id__in=declared.values("membership_id"))
 
-        org_unit_id = params.get("org_unit")
+        org_unit_id = uuid_param(self.request, "org_unit")
         if org_unit_id:
             target = OrgUnit.objects.filter(id=org_unit_id).first()
             if target is None:

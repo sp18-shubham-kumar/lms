@@ -5,11 +5,20 @@ The readiness engine reads ONLY the verified tier (SkillAssertion) to determine
 whether a member meets each requirement. Self-declared skills never gate readiness.
 
 Functions:
-- compute_readiness(membership, job_profile) -> ReadinessSnapshot
+- compute_readiness(membership, job_profile, *, requirements=None, levels=None)
+    -> ReadinessSnapshot
     For each core ProfileRequirement, check if a SkillAssertion exists with
     level >= min_level. Count met/total over core requirements only.
     Supporting/optional are computed but advisory (not in met/total).
     Persists/updates the snapshot (upsert).
+
+- gap_report(membership, job_profile) -> dict
+    Per-requirement gap list (met/close/not_started) plus readiness_pct, for the
+    learner gap view and the manager's view of one member.
+
+- ensure_editable(job_profile)
+    Raise ProfileNotEditable unless the profile is a draft. Published and retired
+    versions are never mutated in place; edit a new draft version instead.
 
 - recompute_for_membership(membership)
     Recompute readiness for all job profiles that have a ReadinessSnapshot for
@@ -24,7 +33,54 @@ from typing import Any
 from django.utils import timezone
 
 
-def compute_readiness(membership: Any, job_profile: Any) -> Any:
+class ProfileNotEditable(Exception):
+    """A published or retired job profile was asked to change in place."""
+
+
+def ensure_editable(job_profile: Any) -> None:
+    """Only drafts are mutable; published/retired versions are pinned by snapshots."""
+    if job_profile.status != "draft":
+        raise ProfileNotEditable(
+            f"This profile is {job_profile.status} (v{job_profile.version}) and can't be "
+            "changed in place. Create a new version to edit it."
+        )
+
+
+def best_verified_levels(membership: Any) -> dict[Any, int]:
+    """
+    Return ``{skill_id: highest verified level}`` for a membership.
+
+    The verified tier is the only readiness source, so other modules that reason
+    about a learner's gaps (e.g. learning recommendations) read levels here rather
+    than querying ``SkillAssertion`` directly.
+    """
+    from apps.skills.models import SkillAssertion
+
+    levels: dict[Any, int] = {}
+    for skill_id, level in SkillAssertion.all_tenants.filter(membership=membership).values_list(
+        "skill_id", "level"
+    ):
+        if skill_id not in levels or level > levels[skill_id]:
+            levels[skill_id] = level
+    return levels
+
+
+def profile_requirements(job_profile: Any) -> list[Any]:
+    """Every requirement of a job profile, with its skill loaded."""
+    from apps.profiles.models import ProfileRequirement
+
+    return list(
+        ProfileRequirement.all_tenants.filter(job_profile=job_profile).select_related("skill")
+    )
+
+
+def compute_readiness(
+    membership: Any,
+    job_profile: Any,
+    *,
+    requirements: list[Any] | None = None,
+    levels: dict[Any, int] | None = None,
+) -> Any:
     """
     Compute and persist a ReadinessSnapshot for a membership against a job_profile.
 
@@ -34,22 +90,16 @@ def compute_readiness(membership: Any, job_profile: Any) -> Any:
 
     This function is safe to call concurrently: it uses update_or_create to
     avoid duplicate rows.
+
+    Callers that already hold the profile's ``requirements`` (see
+    :func:`profile_requirements`) or the member's verified ``levels`` (see
+    :func:`best_verified_levels`) can pass them in to skip re-reading them.
     """
-    from apps.profiles.models import ProfileRequirement, ReadinessSnapshot
-    from apps.skills.models import SkillAssertion
+    from apps.profiles.models import ReadinessSnapshot
 
-    # Load all requirements for this profile.
-    requirements = list(
-        ProfileRequirement.all_tenants.filter(job_profile=job_profile).select_related("skill")
-    )
-
-    # Build a lookup of skill_id -> best verified assertion level for this membership.
-    assertion_qs = SkillAssertion.all_tenants.filter(membership=membership)
-    assertions_by_skill: dict[Any, int] = {}
-    for assertion in assertion_qs:
-        existing = assertions_by_skill.get(assertion.skill_id)
-        if existing is None or assertion.level > existing:
-            assertions_by_skill[assertion.skill_id] = assertion.level
+    if requirements is None:
+        requirements = profile_requirements(job_profile)
+    assertions_by_skill = best_verified_levels(membership) if levels is None else levels
 
     # Tally core requirements.
     met = 0
@@ -84,12 +134,65 @@ def compute_readiness(membership: Any, job_profile: Any) -> Any:
     return snapshot
 
 
+def gap_report(membership: Any, job_profile: Any) -> dict[str, Any]:
+    """
+    The per-requirement gap between a member's verified levels and a job profile.
+
+    Refreshes the readiness snapshot, then lists every requirement (core, supporting,
+    optional) as met / close (some verified level, below target) / not_started.
+    Unmet requirements come first, smallest gap first ("closest to done"); met last.
+    """
+    requirements = profile_requirements(job_profile)
+    levels = best_verified_levels(membership)
+    snapshot = compute_readiness(membership, job_profile, requirements=requirements, levels=levels)
+
+    items = []
+    for req in requirements:
+        current = levels.get(req.skill_id)
+        is_met = current is not None and current >= req.min_level
+        if is_met:
+            req_status = "met"
+        elif current is not None:
+            req_status = "close"
+        else:
+            req_status = "not_started"
+        gap = 0 if is_met else req.min_level - (current or 0)
+        items.append(
+            (
+                (1 if is_met else 0, gap, req.skill.name),
+                {
+                    "skill_id": str(req.skill_id),
+                    "skill_name": req.skill.name,
+                    "criticality": req.criticality,
+                    "min_level": req.min_level,
+                    "current_level": current,
+                    "status": req_status,
+                },
+            )
+        )
+    items.sort(key=lambda pair: pair[0])
+
+    return {
+        "job_profile": str(job_profile.id),
+        "readiness_pct": snapshot.readiness_pct,
+        "met": snapshot.met,
+        "total": snapshot.total,
+        "requirements": [item for _key, item in items],
+    }
+
+
 def publish_job_profile(job_profile: Any, actor: Any) -> Any:
     """
-    Transition a draft job profile to published. Audited. Idempotent in effect.
+    Transition a draft job profile to published. Audited. Idempotent in effect
+    (publishing a published profile is a no-op success); a retired profile can't be
+    republished.
     """
     from core import audit
 
+    if job_profile.status == "retired":
+        raise ProfileNotEditable("A retired profile can't be published. Create a new version.")
+    if job_profile.status == "published":
+        return job_profile
     job_profile.status = "published"
     job_profile.save(update_fields=["status", "updated_at"])
     audit.record(
@@ -104,7 +207,10 @@ def publish_job_profile(job_profile: Any, actor: Any) -> Any:
 
 def new_version_from_profile(job_profile: Any, actor: Any) -> Any:
     """
-    Create and return a new draft version of a published job profile.
+    Create and return a new draft version of a published (or retired) job profile.
+
+    Raises ProfileNotEditable when called on a draft, or when the lineage
+    (tenant, track, grade, title) already has an open draft — one draft at a time.
 
     The prior version row is retained (readiness snapshots pin the version).
     The new draft copies the title/track/grade and the requirements.
@@ -114,17 +220,23 @@ def new_version_from_profile(job_profile: Any, actor: Any) -> Any:
     from apps.profiles.models import JobProfile, ProfileRequirement
     from core import audit
 
+    lineage = JobProfile.all_tenants.filter(
+        tenant_id=job_profile.tenant_id,
+        track=job_profile.track,
+        grade=job_profile.grade,
+        title=job_profile.title,
+    )
+    if job_profile.status == "draft":
+        raise ProfileNotEditable("This profile is already a draft; edit it directly.")
+    open_draft = lineage.filter(status="draft").first()
+    if open_draft is not None:
+        raise ProfileNotEditable(
+            f"Version {open_draft.version} is already an open draft of this profile."
+        )
+
     with transaction.atomic():
         next_version = (
-            JobProfile.all_tenants.filter(
-                tenant_id=job_profile.tenant_id,
-                track=job_profile.track,
-                grade=job_profile.grade,
-                title=job_profile.title,
-            )
-            .order_by("-version")
-            .values_list("version", flat=True)
-            .first()
+            lineage.order_by("-version").values_list("version", flat=True).first()
             or job_profile.version
         ) + 1
         new_profile = JobProfile.objects.create(
@@ -192,5 +304,6 @@ def recompute_for_membership(membership: Any) -> None:
     if not all_profile_ids:
         return
 
+    levels = best_verified_levels(membership)
     for profile in JobProfile.all_tenants.filter(id__in=all_profile_ids):
-        compute_readiness(membership, profile)
+        compute_readiness(membership, profile, levels=levels)

@@ -85,3 +85,126 @@ class OrgUnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrgUnit
         fields = ["id", "name", "path", "parent"]
+
+
+# ─── Response shapes (OpenAPI documentation for the hand-built APIView payloads) ───
+
+
+class LoginResponseSerializer(serializers.Serializer):
+    access = serializers.CharField(help_text="JWT access token. Send as `Authorization: Bearer`.")
+    refresh = serializers.CharField(help_text="JWT refresh token for /api/auth/token/refresh/.")
+    person = PersonSummarySerializer()
+    memberships = MembershipSummarySerializer(
+        many=True, help_text="Tenants the person can act in. Use a `tenant_id` as X-Tenant-Id."
+    )
+    is_platform_operator = serializers.BooleanField(
+        help_text="True for platform operators, who can create tenants under /api/platform/."
+    )
+
+
+class AccountSerializer(serializers.Serializer):
+    """The signed-in person independent of any tenant."""
+
+    person = PersonSummarySerializer()
+    memberships = MembershipSummarySerializer(many=True)
+    is_platform_operator = serializers.BooleanField()
+
+
+class PlatformTenantSerializer(serializers.ModelSerializer):
+    """A tenant as listed to platform operators."""
+
+    member_count = serializers.IntegerField(help_text="Active memberships.")
+
+    class Meta:
+        model = Tenant
+        fields = ["id", "name", "slug", "status", "accent_color", "created_at", "member_count"]
+
+
+class SessionSerializer(serializers.Serializer):
+    person = PersonSummarySerializer()
+    tenant = TenantSummarySerializer()
+    capabilities = serializers.ListField(
+        child=serializers.CharField(), help_text="Capability keys held in the active tenant."
+    )
+    memberships = MembershipSummarySerializer(many=True)
+    is_platform_operator = serializers.BooleanField()
+
+
+class InvitationPayloadSerializer(serializers.Serializer):
+    """An invitation as returned by create/resend. ``token`` is shown exactly once."""
+
+    id = serializers.UUIDField()
+    email = serializers.EmailField()
+    role = serializers.CharField()
+    role_id = serializers.UUIDField(allow_null=True)
+    status = serializers.ChoiceField(choices=Invitation.Status.choices)
+    expires_at = serializers.DateTimeField()
+    token = serializers.CharField(required=False, help_text="Raw accept token, returned once.")
+    invite_url = serializers.URLField(
+        required=False, help_text="Accept link for the token, returned with it."
+    )
+
+
+class InvitationAcceptResponseSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    tenant_id = serializers.UUIDField()
+
+
+class _ProvisionedTenantSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    slug = serializers.SlugField()
+
+
+class TenantProvisionResponseSerializer(serializers.Serializer):
+    tenant = _ProvisionedTenantSerializer()
+    admin = PersonSummarySerializer()
+    role = serializers.CharField(help_text="Name of the role granted to the first admin.")
+    invitation = InvitationPayloadSerializer()
+
+
+# ─── Learner profile ───
+
+
+class _ProfileOrgUnitSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    path = serializers.CharField()
+
+
+class ProfileDeclaredSkillSerializer(serializers.Serializer):
+    skill_id = serializers.UUIDField()
+    skill_name = serializers.CharField()
+    level = serializers.IntegerField(allow_null=True)
+    note = serializers.CharField(allow_blank=True)
+
+
+class ProfileVerifiedSkillSerializer(serializers.Serializer):
+    skill_id = serializers.UUIDField()
+    skill_name = serializers.CharField()
+    level = serializers.IntegerField()
+    verified_at = serializers.DateTimeField(allow_null=True)
+
+
+class ProfileReadinessSerializer(serializers.Serializer):
+    job_profile_id = serializers.UUIDField()
+    job_profile_name = serializers.CharField()
+    met = serializers.IntegerField()
+    total = serializers.IntegerField()
+    readiness_pct = serializers.IntegerField()
+    computed_at = serializers.DateTimeField()
+
+
+class PersonProfileSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    email = serializers.EmailField()
+    display_name = serializers.CharField()
+    status = serializers.CharField()
+    joined_at = serializers.DateTimeField(allow_null=True)
+    org_unit = _ProfileOrgUnitSerializer(allow_null=True)
+    declared = ProfileDeclaredSkillSerializer(many=True)
+    verified = ProfileVerifiedSkillSerializer(many=True)
+    readiness = ProfileReadinessSerializer(
+        many=True,
+        help_text="Readiness snapshots; only for the caller's own profile or with report.org.view.",
+    )

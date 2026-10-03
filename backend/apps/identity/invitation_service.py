@@ -58,6 +58,7 @@ def to_payload(invitation: Invitation, *, token: str | None = None) -> dict[str,
     }
     if token is not None:
         payload["token"] = token
+        payload["invite_url"] = invite_url(token)
     return payload
 
 
