@@ -157,11 +157,15 @@ class SessionView(APIView):
     summary="List directory members",
     description=(
         "Paginated directory of the active tenant's ACTIVE members. "
-        "Optional filters: ``skill`` (members who declared it), ``level`` "
-        "(minimum declared level, use with ``skill``), ``org_unit`` (subtree)."
+        "Optional filters: ``q`` (name or email contains), ``skill`` (members who "
+        "declared it), ``level`` (minimum declared level, use with ``skill``), "
+        "``org_unit`` (subtree)."
     ),
     tags=["Identity"],
     parameters=[
+        OpenApiParameter(
+            "q", OpenApiTypes.STR, description="Case-insensitive name or email substring."
+        ),
         OpenApiParameter(
             "skill", OpenApiTypes.UUID, description="Filter to members who declared this skill."
         ),
@@ -184,7 +188,9 @@ class PeopleListView(ListAPIView):
     are hidden per spec (data-model.md: "Ending a membership hides the person from
     tenant reports").
 
-    Supports filters ``?skill=&org_unit=&level=``:
+    Supports filters ``?q=&skill=&org_unit=&level=``:
+
+    - ``q``: case-insensitive substring of the member's display name or email.
 
     - ``skill`` (and optional minimum ``level``): members who hold the skill. Phase 1
       reads the self-declared tier (``SelfDeclaredSkill``). **Part B switch:** once the
@@ -207,6 +213,12 @@ class PeopleListView(ListAPIView):
             .order_by("person__display_name")
         )
         params = self.request.query_params
+
+        search = params.get("q", "").strip()
+        if search:
+            qs = qs.filter(
+                Q(person__display_name__icontains=search) | Q(person__email__icontains=search)
+            )
 
         skill_id = params.get("skill")
         if skill_id:
