@@ -46,8 +46,8 @@ class SelfDeclaredSkillSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SelfDeclaredSkill
-        fields = ["id", "membership", "skill", "level", "note"]
-        read_only_fields = ["id", "membership"]
+        fields = ["id", "membership", "skill", "level", "note", "review_status", "review_note"]
+        read_only_fields = ["id", "membership", "review_status", "review_note"]
 
     def validate_level(self, value: int | None) -> int | None:
         # Levels run 1..5 (per skill_level in the spec). Part B refines against a
@@ -123,3 +123,42 @@ class SkillAssertionSerializer(serializers.ModelSerializer):
         if not (1 <= value <= 5):
             raise serializers.ValidationError("level must be between 1 and 5.")
         return value
+
+
+class SkillClaimSerializer(serializers.ModelSerializer):
+    """A member's claim as a verifier sees it: who claimed what, at which level."""
+
+    person_name = serializers.CharField(source="membership.person.display_name", read_only=True)
+    person_email = serializers.EmailField(source="membership.person.email", read_only=True)
+    skill_name = serializers.CharField(source="skill.name", read_only=True)
+
+    class Meta:
+        model = SelfDeclaredSkill
+        fields = [
+            "id",
+            "membership",
+            "person_name",
+            "person_email",
+            "skill",
+            "skill_name",
+            "level",
+            "note",
+            "review_status",
+            "reviewed_at",
+            "review_note",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class ClaimVerifySerializer(serializers.Serializer):
+    """Request body for verifying a claim; ``level`` may differ from the claimed one."""
+
+    level = serializers.IntegerField(min_value=1, max_value=5)
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ClaimRejectSerializer(serializers.Serializer):
+    """Request body for rejecting a claim. A reason is required so the member can act."""
+
+    note = serializers.CharField()

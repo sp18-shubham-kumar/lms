@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
@@ -22,8 +23,11 @@ from apps.skills.models import (
     TenantSkillOverride,
 )
 from apps.skills.serializers import (
+    ClaimRejectSerializer,
+    ClaimVerifySerializer,
     SelfDeclaredSkillSerializer,
     SkillAssertionSerializer,
+    SkillClaimSerializer,
     SkillDomainSerializer,
     SkillEdgeSerializer,
     SkillLevelSerializer,
@@ -42,25 +46,78 @@ DECLARE_CAPABILITY = "skill.claim.submit"
 VERIFY_CAPABILITY = "skill.verify"
 
 # Actions that mutate state require taxonomy.edit; reads require directory.view.
-_WRITE_ACTIONS = {"create", "update", "partial_update", "destroy", "edges", "override", "publish"}
+_WRITE_ACTIONS = {
+    "create",
+    "update",
+    "partial_update",
+    "destroy",
+    "edges",
+    "override",
+    "publish",
+    "new_version",
+}
 # The levels action gates per-method: GET reads (directory.view), PUT writes (taxonomy.edit).
+
+
+def _capability_for(action: str | None) -> str:
+    return WRITE_CAPABILITY if action in _WRITE_ACTIONS else READ_CAPABILITY
+
+
+def _validation_error(exc: DjangoValidationError) -> ValidationError:
+    return ValidationError(exc.messages)
 
 
 @extend_schema_view(
     list=extend_schema(summary="List skill domains", tags=["Skills"]),
     retrieve=extend_schema(summary="Retrieve a skill domain", tags=["Skills"]),
+    create=extend_schema(summary="Create a tenant skill domain", tags=["Skills"]),
+    update=extend_schema(summary="Replace a tenant skill domain", tags=["Skills"]),
+    partial_update=extend_schema(summary="Update a tenant skill domain", tags=["Skills"]),
 )
 @extend_schema(tags=["Skills"])
-class SkillDomainViewSet(viewsets.ReadOnlyModelViewSet):
-    """List/retrieve skill domains visible to the tenant (globals + tenant rows)."""
+class SkillDomainViewSet(
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.ReadOnlyModelViewSet,
+):
+    """
+    Skill domains visible to the tenant (globals + tenant rows).
+
+    Reads need ``directory.view``; create/edit need ``taxonomy.edit`` and only ever
+    touch the current tenant's own domains — globals are read-only. Audited.
+    """
 
     serializer_class = SkillDomainSerializer
-    permission_classes = [*APIView.permission_classes, HasCapability]
     required_capability = READ_CAPABILITY
+
+    def get_permissions(self) -> list[Any]:
+        self.required_capability = _capability_for(self.action)
+        return [*(perm() for perm in APIView.permission_classes), HasCapability()]
 
     def get_queryset(self) -> Any:
         # .visible() = globals (tenant NULL) ∪ current tenant rows (fail-closed).
         return SkillDomain.objects.visible().order_by("sort", "name")
+
+    def perform_create(self, serializer: Any) -> None:
+        tenant_id = get_current_tenant()
+        domain = serializer.save(tenant_id=tenant_id)
+        audit.record(
+            actor=self.request.user,
+            action="skill.domain.create",
+            resource=domain,
+            tenant_id=tenant_id,
+        )
+
+    def perform_update(self, serializer: Any) -> None:
+        if serializer.instance.tenant_id is None:
+            raise PermissionDenied("Global domains are read-only to tenants.")
+        domain = serializer.save()
+        audit.record(
+            actor=self.request.user,
+            action="skill.domain.update",
+            resource=domain,
+            tenant_id=domain.tenant_id,
+        )
 
 
 @extend_schema_view(
@@ -93,7 +150,7 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
                 READ_CAPABILITY if method in ("GET", "HEAD", "OPTIONS") else WRITE_CAPABILITY
             )
         else:
-            capability = WRITE_CAPABILITY if self.action in _WRITE_ACTIONS else READ_CAPABILITY
+            capability = _capability_for(self.action)
         self.required_capability = capability
         perms: list[Any] = [perm() for perm in APIView.permission_classes]
         perms.append(HasCapability())
@@ -143,6 +200,10 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
 
     def perform_update(self, serializer: Any) -> None:
         self._reject_global(serializer.instance)
+        try:
+            services.ensure_editable(serializer.instance)
+        except DjangoValidationError as exc:
+            raise _validation_error(exc) from exc
         skill = serializer.save()
         audit.record(
             actor=self.request.user,
@@ -174,6 +235,11 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
             qs = SkillLevel.objects.filter(skill=skill).order_by("level")
             return Response({"levels": SkillLevelSerializer(qs, many=True).data})
 
+        self._reject_global(skill)
+        try:
+            services.ensure_editable(skill)
+        except DjangoValidationError as exc:
+            raise _validation_error(exc) from exc
         serializer = SkillLevelsReplaceSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         levels_data = serializer.validated_data["levels"]
@@ -205,12 +271,15 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
     def edges(self, request: Any, *args: Any, **kwargs: Any) -> Response:
         skill = self.get_object()
         if request.method == "GET":
-            qs = SkillEdge.objects.filter(from_skill=skill)
+            # visible(): a global skill's edges include only globals + this tenant's own.
+            qs = SkillEdge.objects.visible().filter(from_skill=skill)
             return Response({"edges": SkillEdgeSerializer(qs, many=True).data})
+
+        self._reject_global(skill)
 
         if request.method == "DELETE":
             edge_id = request.query_params.get("edge")
-            edge = SkillEdge.objects.filter(id=edge_id, from_skill=skill).first()
+            edge = SkillEdge.objects.visible().filter(id=edge_id, from_skill=skill).first()
             if edge is None:
                 from django.http import Http404
 
@@ -233,7 +302,7 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         try:
             edge = services.add_edge(skill, to_skill, kind)
         except DjangoValidationError as exc:
-            raise ValidationError(exc.messages) from exc
+            raise _validation_error(exc) from exc
         audit.record(
             actor=request.user,
             action="skill.edge.add",
@@ -291,6 +360,37 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         self._reject_global(skill)
         published = services.publish_skill(skill, request.user)
         return Response(self.get_serializer(published).data)
+
+    @extend_schema(
+        summary="List a skill's versions",
+        description="Every version of the skill (same tenant + slug), newest first.",
+        responses=SkillSerializer(many=True),
+        tags=["Skills"],
+    )
+    @action(detail=True, methods=["get"])
+    def versions(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        skill = self.get_object()
+        rows = services.versions_of(skill)
+        return Response({"versions": SkillSerializer(rows, many=True).data})
+
+    @extend_schema(
+        summary="Start a new draft version of a skill",
+        description=(
+            "Copy a published tenant skill and its rubric into a new draft version. The "
+            "prior version stays immutable (assertions pin it). Requires taxonomy.edit."
+        ),
+        request=None,
+        responses={201: SkillSerializer},
+        tags=["Skills"],
+    )
+    @action(detail=True, methods=["post"], url_path="new-version")
+    def new_version(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        skill = self.get_object()
+        self._reject_global(skill)
+        if skill.status != "published":
+            raise ValidationError("Only a published skill can be versioned.")
+        draft = services.new_version_from(skill, request.user)
+        return Response(self.get_serializer(draft).data, status=status.HTTP_201_CREATED)
 
 
 @extend_schema_view(
@@ -397,33 +497,89 @@ class SkillAssertionViewSet(
         )
 
     def perform_create(self, serializer: Any) -> None:
-        from django.utils import timezone
-
-        tenant_id = get_current_tenant()
-        skill = serializer.validated_data["skill"]
-        assertion = serializer.save(
-            tenant_id=tenant_id,
-            skill_version=skill.version,  # pin the version judged
-            verified_by=self.request.user,
-            verified_at=timezone.now(),
-        )
-        audit.record(
+        data = serializer.validated_data
+        serializer.instance = services.record_assertion(
+            membership=data["membership"],
+            skill=data["skill"],
+            level=data["level"],
             actor=self.request.user,
-            action="skill.assertion.record",
-            resource=assertion,
-            tenant_id=tenant_id,
-            skill_id=str(skill.id),
-            level=assertion.level,
+            tenant_id=get_current_tenant(),
+            note=data.get("note", ""),
+            skill_level=data.get("skill_level"),
         )
-        # Part B2 hook: recompute readiness for this membership from the verified tier.
-        try:
-            from apps.profiles.services import recompute_for_membership
 
-            recompute_for_membership(assertion.membership)
-        except Exception:  # noqa: BLE001
-            # Non-fatal: readiness recompute failure must not break the assertion write.
-            import logging
 
-            logging.getLogger(__name__).exception(
-                "readiness recompute failed after assertion write"
+CLAIM_STATUS_FILTERS = {*SelfDeclaredSkill.ReviewStatus.values, "all"}
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="List skill claims for review",
+        tags=["Skills"],
+        parameters=[
+            OpenApiParameter(
+                "status",
+                OpenApiTypes.STR,
+                enum=sorted(CLAIM_STATUS_FILTERS),
+                description="Review status to list (default: pending).",
             )
+        ],
+    ),
+    retrieve=extend_schema(summary="Retrieve a skill claim", tags=["Skills"]),
+)
+@extend_schema(tags=["Skills"])
+class SkillClaimViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    The verifier's queue (``skill.verify``): members' self-declared claims in this
+    tenant. Verifying records a :class:`SkillAssertion` — the only readiness input —
+    and rejecting records a reason. Nobody reviews their own claim. Audited.
+    """
+
+    serializer_class = SkillClaimSerializer
+    permission_classes = [*APIView.permission_classes, HasCapability]
+    required_capability = VERIFY_CAPABILITY
+
+    def get_queryset(self) -> Any:
+        qs = SelfDeclaredSkill.objects.select_related("skill", "membership__person").order_by(
+            "created_at"
+        )
+        if self.action != "list":
+            return qs
+        wanted = self.request.query_params.get("status", SelfDeclaredSkill.ReviewStatus.PENDING)
+        if wanted not in CLAIM_STATUS_FILTERS:
+            raise ValidationError({"status": f"Must be one of {sorted(CLAIM_STATUS_FILTERS)}."})
+        return qs if wanted == "all" else qs.filter(review_status=wanted)
+
+    def _review(self, fn: Any, **kwargs: Any) -> Any:
+        try:
+            return fn(self.get_object(), actor=self.request.user, **kwargs)
+        except DjangoValidationError as exc:
+            raise _validation_error(exc) from exc
+        except DjangoPermissionDenied as exc:
+            raise PermissionDenied(str(exc)) from exc
+
+    @extend_schema(
+        summary="Verify a skill claim",
+        request=ClaimVerifySerializer,
+        responses={201: SkillAssertionSerializer},
+        tags=["Skills"],
+    )
+    @action(detail=True, methods=["post"])
+    def verify(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        body = ClaimVerifySerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        assertion = self._review(services.verify_claim, **body.validated_data)
+        return Response(SkillAssertionSerializer(assertion).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        summary="Reject a skill claim",
+        request=ClaimRejectSerializer,
+        responses=SkillClaimSerializer,
+        tags=["Skills"],
+    )
+    @action(detail=True, methods=["post"])
+    def reject(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        body = ClaimRejectSerializer(data=request.data)
+        body.is_valid(raise_exception=True)
+        claim = self._review(services.reject_claim, **body.validated_data)
+        return Response(SkillClaimSerializer(claim).data)

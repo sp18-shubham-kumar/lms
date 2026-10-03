@@ -168,7 +168,18 @@ class SkillEdge(GlobalOrTenantModel):
 
 
 class SelfDeclaredSkill(TenantScopedModel):
-    """A member's self-claim (the untrusted tier, separate from verified assertions)."""
+    """
+    A member's self-claim (the untrusted tier, separate from verified assertions).
+
+    A claim doubles as the verifier's work item: it starts ``pending`` and a verifier
+    either verifies it (recording a :class:`SkillAssertion`) or rejects it. The review
+    fields record that decision; they never feed readiness on their own.
+    """
+
+    class ReviewStatus(models.TextChoices):
+        PENDING = "pending", "pending"
+        VERIFIED = "verified", "verified"
+        REJECTED = "rejected", "rejected"
 
     membership = models.ForeignKey(
         "identity.Membership", on_delete=models.CASCADE, related_name="self_declared_skills"
@@ -176,6 +187,14 @@ class SelfDeclaredSkill(TenantScopedModel):
     skill = models.ForeignKey(Skill, on_delete=models.PROTECT, related_name="+")
     level = models.SmallIntegerField(null=True, blank=True)
     note = models.TextField(blank=True, default="")
+    review_status = models.CharField(
+        max_length=16, choices=ReviewStatus.choices, default=ReviewStatus.PENDING
+    )
+    reviewed_by = models.ForeignKey(
+        "identity.Person", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True, default="")
 
     class Meta:
         constraints = [

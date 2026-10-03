@@ -7,13 +7,28 @@ See docs/specs/data-model.md and the complete-backend design doc.
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.utils import timezone
 
-from apps.skills.models import Skill, SkillEdge, SkillLevel, TenantSkillOverride
+from apps.skills.models import (
+    SelfDeclaredSkill,
+    Skill,
+    SkillAssertion,
+    SkillEdge,
+    SkillLevel,
+    TenantSkillOverride,
+)
 from core import audit
+
+logger = logging.getLogger(__name__)
+
+# Only drafts are editable in place; published/retired rows are pinned by assertions
+# and requirements, so changing them means cutting a new version.
+EDITABLE_STATUS = "draft"
 
 
 def retire_skill(skill: Skill, actor: Any) -> Skill:
@@ -98,6 +113,20 @@ def new_version_from(skill: Skill, actor: Any) -> Skill:
         version=next_version,
     )
     return new_skill
+
+
+def ensure_editable(skill: Skill) -> None:
+    """
+    Reject an in-place edit of a non-draft skill. Raises
+    :class:`django.core.exceptions.ValidationError`; callers map it to a 400.
+    """
+    if skill.status != EDITABLE_STATUS:
+        raise ValidationError(f"This skill is {skill.status}; create a new version to change it.")
+
+
+def versions_of(skill: Skill) -> Any:
+    """Every version row sharing the skill's (tenant, slug), newest first."""
+    return Skill.objects.filter(tenant_id=skill.tenant_id, slug=skill.slug).order_by("-version")
 
 
 def would_create_cycle(from_id: Any, to_id: Any) -> bool:
@@ -189,3 +218,98 @@ def resolve_skill_view(queryset: Any, tenant_id: Any) -> list[Skill]:
             continue
         resolved.append(apply_override(skill, override))
     return resolved
+
+
+def record_assertion(
+    *,
+    membership: Any,
+    skill: Skill,
+    level: int,
+    actor: Any,
+    tenant_id: Any,
+    note: str = "",
+    skill_level: SkillLevel | None = None,
+) -> SkillAssertion:
+    """
+    Record a verified assertion, pinning the skill's current version, then recompute
+    the member's readiness (the verified tier is the only readiness input). Audited.
+    """
+    assertion = SkillAssertion.objects.create(
+        tenant_id=tenant_id,
+        membership=membership,
+        skill=skill,
+        level=level,
+        skill_level=skill_level,
+        skill_version=skill.version,  # pin the version judged
+        verified_by=actor,
+        verified_at=timezone.now(),
+        note=note,
+    )
+    audit.record(
+        actor=actor,
+        action="skill.assertion.record",
+        resource=assertion,
+        tenant_id=tenant_id,
+        skill_id=str(skill.id),
+        level=assertion.level,
+    )
+    try:
+        from apps.profiles.services import recompute_for_membership
+
+        recompute_for_membership(assertion.membership)
+    except Exception:  # noqa: BLE001
+        # Non-fatal: readiness recompute failure must not break the assertion write.
+        logger.exception("readiness recompute failed after assertion write")
+    return assertion
+
+
+def _ensure_reviewable(claim: SelfDeclaredSkill, actor: Any) -> None:
+    if claim.review_status != SelfDeclaredSkill.ReviewStatus.PENDING:
+        raise ValidationError(f"This claim is already {claim.review_status}.")
+    if claim.membership.person_id == getattr(actor, "pk", None):
+        raise PermissionDenied("You cannot review your own skill claim.")
+
+
+def _mark_reviewed(claim: SelfDeclaredSkill, status: str, actor: Any, note: str) -> None:
+    claim.review_status = status
+    claim.reviewed_by = actor
+    claim.reviewed_at = timezone.now()
+    claim.review_note = note
+    claim.save(
+        update_fields=["review_status", "reviewed_by", "reviewed_at", "review_note", "updated_at"]
+    )
+
+
+def verify_claim(
+    claim: SelfDeclaredSkill, *, level: int, actor: Any, note: str = ""
+) -> SkillAssertion:
+    """
+    Verify a pending claim at ``level`` (which may differ from the claimed level):
+    records the assertion and closes the claim. Self-review is refused.
+    """
+    _ensure_reviewable(claim, actor)
+    with transaction.atomic():
+        assertion = record_assertion(
+            membership=claim.membership,
+            skill=claim.skill,
+            level=level,
+            actor=actor,
+            tenant_id=claim.tenant_id,
+            note=note,
+        )
+        _mark_reviewed(claim, SelfDeclaredSkill.ReviewStatus.VERIFIED, actor, note)
+    return assertion
+
+
+def reject_claim(claim: SelfDeclaredSkill, *, actor: Any, note: str) -> SelfDeclaredSkill:
+    """Reject a pending claim with a reason. No assertion is recorded. Audited."""
+    _ensure_reviewable(claim, actor)
+    _mark_reviewed(claim, SelfDeclaredSkill.ReviewStatus.REJECTED, actor, note)
+    audit.record(
+        actor=actor,
+        action="skill.claim.reject",
+        resource=claim,
+        tenant_id=claim.tenant_id,
+        skill_id=str(claim.skill_id),
+    )
+    return claim
