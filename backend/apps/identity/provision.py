@@ -23,6 +23,7 @@ ADMIN_CAPABILITIES = [
     "credential.revoke",
     "taxonomy.edit",
     "jobprofile.edit",
+    "resource.edit",
     "report.org.view",
 ]
 

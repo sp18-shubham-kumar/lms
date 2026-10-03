@@ -60,6 +60,7 @@ LOCAL_APPS = [
     "apps.authz",
     "apps.skills",
     "apps.profiles",
+    "apps.learning",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -181,6 +182,9 @@ SPECTACULAR_SETTINGS = {
     "ENUM_NAME_OVERRIDES": {
         "LifecycleStatusEnum": "apps.skills.models.Skill.STATUS_CHOICES",
         "InvitationStatusEnum": "apps.identity.models.Invitation.Status",
+        "ResourceStatusEnum": "apps.learning.models.LearningResource.STATUS_CHOICES",
+        "ResourceKindEnum": "apps.learning.models.LearningResource.KIND_CHOICES",
+        "ProgressStatusEnum": "apps.learning.models.LearningProgress.STATUS_CHOICES",
     },
 }
 
