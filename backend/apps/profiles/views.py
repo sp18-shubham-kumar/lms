@@ -4,10 +4,13 @@ Views for the profiles app.
 Endpoints:
 - /api/profiles/tracks/            CRUD (read: directory.view, write: jobprofile.edit)
 - /api/profiles/job-profiles/      CRUD (read: directory.view, write: jobprofile.edit)
-  + POST /job-profiles/{id}/requirements/          add requirement
-  + DELETE /job-profiles/{id}/requirements/{req}/  remove requirement
+  + GET  /job-profiles/{id}/requirements/          list requirements
+  + POST /job-profiles/{id}/requirements/          add requirement (draft only)
+  + DELETE /job-profiles/{id}/requirements/{req}/  remove requirement (draft only)
   + POST /job-profiles/{id}/publish/               publish (versioned)
+  + POST /job-profiles/{id}/new-version/           open a new draft of a published profile
 - /api/profiles/me/readiness/      learner gap view (skill.claim.submit)
+- /api/profiles/members/{membership}/readiness/  one member's gap (report.org.view)
 - /api/profiles/readiness/         team snapshots (report.org.view)
 - /api/profiles/heatmap/           members x core reqs grid (report.org.view)
 """
@@ -20,7 +23,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ParseError, PermissionDenied
+from rest_framework.exceptions import APIException, ParseError, PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -29,6 +32,7 @@ from apps.profiles.models import JobProfile, ProfileRequirement, ReadinessSnapsh
 from apps.profiles.serializers import (
     HeatmapSerializer,
     JobProfileSerializer,
+    MemberReadinessSerializer,
     MeReadinessSerializer,
     ProfileRequirementSerializer,
     ReadinessSnapshotSerializer,
@@ -53,7 +57,23 @@ _WRITE_ACTIONS = {
     "add_requirement",
     "remove_requirement",
     "publish",
+    "new_version",
 }
+
+
+class ProfileConflict(APIException):
+    """409: the profile's lifecycle state doesn't allow this change."""
+
+    status_code = status.HTTP_409_CONFLICT
+    default_code = "profile_not_editable"
+    default_detail = "This job profile can't be changed in its current state."
+
+
+def _ensure_editable(profile: JobProfile) -> None:
+    try:
+        services.ensure_editable(profile)
+    except services.ProfileNotEditable as exc:
+        raise ProfileConflict(str(exc)) from exc
 
 
 def _profile_permissions(view: Any) -> list[Any]:
@@ -149,7 +169,18 @@ class TrackViewSet(viewsets.ModelViewSet):
 @extend_schema_view(
     list=extend_schema(
         summary="List job profiles",
-        description="List all job profiles for the current tenant.",
+        description="List job profiles for the current tenant, optionally filtered.",
+        parameters=[
+            OpenApiParameter(
+                "status",
+                description="Only profiles in this status (draft, published, retired).",
+                required=False,
+                type=str,
+            ),
+            OpenApiParameter(
+                "track", description="Only profiles in this track (UUID).", required=False, type=str
+            ),
+        ],
         tags=["Profiles"],
     ),
     retrieve=extend_schema(
@@ -167,12 +198,18 @@ class TrackViewSet(viewsets.ModelViewSet):
     ),
     update=extend_schema(
         summary="Replace a job profile",
-        description="Replace a job profile's fields. Requires jobprofile.edit.",
+        description=(
+            "Replace a draft job profile's fields. Published/retired versions return 409. "
+            "Requires jobprofile.edit."
+        ),
         tags=["Profiles"],
     ),
     partial_update=extend_schema(
         summary="Update a job profile",
-        description="Partially update a job profile. Requires jobprofile.edit.",
+        description=(
+            "Partially update a draft job profile. Published/retired versions return 409. "
+            "Requires jobprofile.edit."
+        ),
         tags=["Profiles"],
     ),
     destroy=extend_schema(
@@ -203,7 +240,15 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         return _profile_permissions(self)
 
     def get_queryset(self) -> Any:
-        return JobProfile.objects.select_related("track").order_by("track", "grade", "version")
+        qs = JobProfile.objects.select_related("track")
+        if self.action == "list":
+            status_filter = self.request.query_params.get("status")
+            track_filter = self.request.query_params.get("track")
+            if status_filter:
+                qs = qs.filter(status=status_filter)
+            if track_filter:
+                qs = qs.filter(track_id=track_filter)
+        return qs.order_by("track__name", "grade", "title", "version")
 
     def create(self, request: Any, *args: Any, **kwargs: Any) -> Response:
         return self.idempotent_create(
@@ -222,6 +267,7 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         )
 
     def perform_update(self, serializer: Any) -> None:
+        _ensure_editable(serializer.instance)
         profile = serializer.save()
         audit.record(
             actor=self.request.user,
@@ -246,7 +292,8 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         summary="Add a requirement to a job profile",
         description=(
             "Add a skill requirement (min_level, criticality) to this job profile. "
-            "Each skill can appear only once per profile. Requires jobprofile.edit. Audited."
+            "Each skill can appear only once per profile. Draft profiles only (409 "
+            "otherwise). Requires jobprofile.edit. Audited."
         ),
         request=ProfileRequirementSerializer,
         responses=ProfileRequirementSerializer,
@@ -256,9 +303,14 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
     def add_requirement(self, request: Any, *args: Any, **kwargs: Any) -> Response:
         """Add a requirement to this job profile."""
         profile = self.get_object()
+        _ensure_editable(profile)
         tenant_id = get_current_tenant()
         serializer = ProfileRequirementSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        if ProfileRequirement.objects.filter(
+            job_profile=profile, skill=serializer.validated_data["skill"]
+        ).exists():
+            raise ProfileConflict("This skill is already a requirement of this profile.")
         requirement = serializer.save(tenant_id=tenant_id, job_profile=profile)
         audit.record(
             actor=request.user,
@@ -274,10 +326,28 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         )
 
     @extend_schema(
+        summary="List a job profile's requirements",
+        description="List the skill requirements of this job profile. Requires directory.view.",
+        request=None,
+        responses=ProfileRequirementSerializer(many=True),
+        tags=["Profiles"],
+    )
+    @add_requirement.mapping.get
+    def list_requirements(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        """List this job profile's requirements, by skill name."""
+        profile = self.get_object()
+        requirements = (
+            ProfileRequirement.objects.filter(job_profile=profile)
+            .select_related("skill")
+            .order_by("skill__name")
+        )
+        return Response(ProfileRequirementSerializer(requirements, many=True).data)
+
+    @extend_schema(
         summary="Remove a requirement from a job profile",
         description=(
             "Remove a skill requirement from this job profile by requirement ID. "
-            "Requires jobprofile.edit. Audited."
+            "Draft profiles only (409 otherwise). Requires jobprofile.edit. Audited."
         ),
         parameters=[
             OpenApiParameter(
@@ -298,6 +368,7 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
     def remove_requirement(self, request: Any, req_id: str, *args: Any, **kwargs: Any) -> Response:
         """Remove a requirement from this job profile."""
         profile = self.get_object()
+        _ensure_editable(profile)
         tenant_id = get_current_tenant()
         requirement = ProfileRequirement.objects.filter(id=req_id, job_profile=profile).first()
         if requirement is None:
@@ -318,8 +389,9 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
     @extend_schema(
         summary="Publish a job profile",
         description=(
-            "Transition a draft job profile to published. If the profile is already published, "
-            "use the edit endpoints to create a new version. Requires jobprofile.edit. Audited."
+            "Transition a draft job profile to published. Publishing a published profile is a "
+            "no-op; a retired one returns 409. To change a published profile, open a new "
+            "version. Requires jobprofile.edit. Audited."
         ),
         request=None,
         responses=JobProfileSerializer,
@@ -329,8 +401,33 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
     def publish(self, request: Any, *args: Any, **kwargs: Any) -> Response:
         """Publish a draft job profile."""
         profile = self.get_object()
-        published = services.publish_job_profile(profile, request.user)
+        try:
+            published = services.publish_job_profile(profile, request.user)
+        except services.ProfileNotEditable as exc:
+            raise ProfileConflict(str(exc)) from exc
         return Response(self.get_serializer(published).data)
+
+    @extend_schema(
+        summary="Open a new version of a job profile",
+        description=(
+            "Create the next draft version of a published (or retired) job profile, copying "
+            "its requirements. The prior version is retained unchanged. 409 if the profile is "
+            "itself a draft or the profile already has an open draft. Requires "
+            "jobprofile.edit. Audited."
+        ),
+        request=None,
+        responses={201: JobProfileSerializer},
+        tags=["Profiles"],
+    )
+    @action(detail=True, methods=["post"], url_path="new-version")
+    def new_version(self, request: Any, *args: Any, **kwargs: Any) -> Response:
+        """Open the next draft version of this profile."""
+        profile = self.get_object()
+        try:
+            draft = services.new_version_from_profile(profile, request.user)
+        except services.ProfileNotEditable as exc:
+            raise ProfileConflict(str(exc)) from exc
+        return Response(self.get_serializer(draft).data, status=status.HTTP_201_CREATED)
 
 
 # ─── Readiness / gap / heatmap views ─────────────────────────────────────────
@@ -376,73 +473,81 @@ class MeReadinessView(APIView):
 
     def get(self, request: Any) -> Response:
         from apps.identity.models import Membership
-        from apps.skills.models import SkillAssertion
 
-        target_id = request.query_params.get("target")
-        if not target_id:
-            raise ParseError("Query parameter 'target' is required.")
-
-        profile = JobProfile.objects.filter(id=target_id).first()
-        if profile is None:
-            from django.http import Http404
-
-            raise Http404
+        profile = _target_profile(request)
 
         # Resolve the caller's membership in this tenant.
         membership = Membership.objects.filter(person=request.user, status="active").first()
         if membership is None:
             raise PermissionDenied("No active membership in this tenant.")
 
-        # Ensure snapshot is up to date.
-        snapshot = services.compute_readiness(membership, profile)
+        return Response(services.gap_report(membership, profile))
 
-        # Build the per-requirement gap list.
-        requirements = list(
-            ProfileRequirement.objects.filter(job_profile=profile).select_related("skill")
+
+def _target_profile(request: Any) -> JobProfile:
+    """The JobProfile named by the required ``target`` query parameter (tenant-scoped)."""
+    from django.http import Http404
+
+    target_id = request.query_params.get("target")
+    if not target_id:
+        raise ParseError("Query parameter 'target' is required.")
+    profile = JobProfile.objects.filter(id=target_id).first()
+    if profile is None:
+        raise Http404
+    return profile
+
+
+@extend_schema(
+    summary="One member's gap against a job profile",
+    description=(
+        "The same gap report as me/readiness, for another active member of the caller's "
+        "tenant — the manager's drill-down from the team heatmap. Requires report.org.view."
+    ),
+    parameters=[
+        OpenApiParameter(
+            "membership_id",
+            OpenApiTypes.UUID,
+            OpenApiParameter.PATH,
+            description="Membership whose readiness to report.",
+        ),
+        OpenApiParameter(
+            "target",
+            description="UUID of the target JobProfile.",
+            required=True,
+            type=str,
+        ),
+    ],
+    tags=["Profiles"],
+    responses=MemberReadinessSerializer,
+)
+class MemberReadinessView(APIView):
+    """A manager's view of one member's readiness. Tenant-scoped; ``report.org.view``."""
+
+    required_capability = "report.org.view"
+
+    def get_permissions(self) -> list[Any]:
+        perms = [perm() for perm in super().permission_classes]
+        perms.append(HasCapability())
+        return perms
+
+    def get(self, request: Any, membership_id: Any) -> Response:
+        from django.http import Http404
+
+        from apps.identity.models import Membership
+
+        membership = (
+            Membership.objects.filter(id=membership_id, status="active")
+            .select_related("person")
+            .first()
         )
-        assertions_by_skill: dict[Any, int] = {
-            a.skill_id: a.level for a in SkillAssertion.objects.filter(membership=membership)
-        }
-
-        gap_items = []
-        for req in requirements:
-            assertion_level = assertions_by_skill.get(req.skill_id)
-            is_met = assertion_level is not None and assertion_level >= req.min_level
-
-            if is_met:
-                req_status = "met"
-            elif assertion_level is not None:
-                req_status = "close"
-            else:
-                req_status = "not_started"
-
-            gap = (req.min_level - (assertion_level or 0)) if not is_met else 0
-
-            gap_items.append(
-                {
-                    "skill_id": str(req.skill_id),
-                    "skill_name": req.skill.name,
-                    "criticality": req.criticality,
-                    "min_level": req.min_level,
-                    "current_level": assertion_level,
-                    "status": req_status,
-                    "_sort_key": (0 if req_status != "met" else 1, gap),
-                }
-            )
-
-        # Sort: unmet first (closest-to-done = lowest gap = lowest _sort_key[1]),
-        # met last.
-        gap_items.sort(key=lambda x: x.pop("_sort_key"))
-
-        readiness_pct = int(snapshot.met * 100 / snapshot.total) if snapshot.total > 0 else 0
-
+        if membership is None:
+            raise Http404
+        profile = _target_profile(request)
         return Response(
             {
-                "job_profile": str(profile.id),
-                "readiness_pct": readiness_pct,
-                "met": snapshot.met,
-                "total": snapshot.total,
-                "requirements": gap_items,
+                **services.gap_report(membership, profile),
+                "membership_id": str(membership.id),
+                "display_name": membership.person.display_name,
             }
         )
 
@@ -583,6 +688,11 @@ class HeatmapView(APIView):
                 membership__in=unique_members, job_profile=profile
             )
         }
+        # Readiness is computed, never assumed: a member with no snapshot yet (they've
+        # never opened this target) gets one now rather than rendering as all-unmet.
+        for member in unique_members:
+            if member.id not in snapshot_map:
+                snapshot_map[member.id] = services.compute_readiness(member, profile)
 
         columns = [{"skill_id": str(r.skill_id), "skill_name": r.skill.name} for r in core_reqs]
 
