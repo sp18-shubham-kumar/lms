@@ -93,6 +93,7 @@ class OrgUnitSerializer(serializers.ModelSerializer):
 class LoginResponseSerializer(serializers.Serializer):
     access = serializers.CharField(help_text="JWT access token. Send as `Authorization: Bearer`.")
     refresh = serializers.CharField(help_text="JWT refresh token for /api/auth/token/refresh/.")
+    person = PersonSummarySerializer()
     memberships = MembershipSummarySerializer(
         many=True, help_text="Tenants the person can act in. Use a `tenant_id` as X-Tenant-Id."
     )
@@ -126,6 +127,7 @@ class SessionSerializer(serializers.Serializer):
         child=serializers.CharField(), help_text="Capability keys held in the active tenant."
     )
     memberships = MembershipSummarySerializer(many=True)
+    is_platform_operator = serializers.BooleanField()
 
 
 class InvitationPayloadSerializer(serializers.Serializer):

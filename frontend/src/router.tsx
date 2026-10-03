@@ -1,28 +1,33 @@
 /**
  * Route table.
  *
- * Public: /login, /choose. Everything else is behind auth and rendered inside
- * the AppShell (one shell, capability-gated sections).
+ * Public: /login, /invite/accept. Behind auth but outside the AppShell (no active
+ * tenant): /choose and /platform. Everything else renders inside the AppShell
+ * (one shell, capability-gated sections).
  */
 import { createBrowserRouter } from 'react-router-dom'
 
 import { AppShell } from './components/AppShell'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { AdminPage } from './pages/AdminPage'
 import { ChooseTenantPage } from './pages/ChooseTenantPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DirectoryPage } from './pages/DirectoryPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { PlatformPage } from './pages/PlatformPage'
 import { SkillsPage } from './pages/SkillsPage'
 import { TeamPage } from './pages/TeamPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
-  { path: '/choose', element: <ChooseTenantPage /> },
+  { path: '/invite/accept', element: <AcceptInvitePage /> },
   {
     element: <ProtectedRoute />,
     children: [
+      { path: '/choose', element: <ChooseTenantPage /> },
+      { path: '/platform', element: <PlatformPage /> },
       {
         element: <AppShell />,
         children: [

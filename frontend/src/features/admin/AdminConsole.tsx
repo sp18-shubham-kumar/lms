@@ -1,11 +1,13 @@
 /**
- * Admin console: roles & capabilities (read) and CSV member import.
+ * Admin console: member invitations, roles & capabilities (read), and CSV
+ * member import.
  *
  * Import is a two-step, pessimistic flow — Preview runs a dry-run diff, Apply
  * commits it — matching the "explicit confirm for state-changing actions" rule.
  */
 import { useState } from 'react'
 
+import { InvitationsPanel } from '../invitations/InvitationsPanel'
 import { useImportMembers, useRoles } from './api'
 import type { ImportDiff } from './types'
 
@@ -35,8 +37,12 @@ export function AdminConsole() {
     <section className="mx-auto max-w-3xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-ink">Admin</h1>
-        <p className="mt-1 text-sm text-ink-soft">Roles, capabilities, and member import.</p>
+        <p className="mt-1 text-sm text-ink-soft">
+          Invitations, roles, capabilities, and member import.
+        </p>
       </div>
+
+      <InvitationsPanel />
 
       {/* Roles */}
       <div>

@@ -4,7 +4,7 @@
  *
  * The tenant name is pinned in the top bar permanently.
  */
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../lib/auth'
 import { useTenant } from '../lib/tenant'
@@ -40,6 +40,9 @@ export function AppShell() {
     navigate('/login')
   }
 
+  // Tenant-scoped screens need an active tenant; send the person to pick one.
+  if (!tenant) return <Navigate to="/choose" replace />
+
   return (
     <div className="flex h-full flex-col">
       <header
@@ -47,7 +50,7 @@ export function AppShell() {
         style={{ borderTopColor: 'var(--tenant-accent)', borderTopWidth: 3 }}
       >
         <div className="flex items-center gap-3">
-          {tenant?.logoUrl ? (
+          {tenant.logoUrl ? (
             <img src={tenant.logoUrl} alt="" className="h-6 w-6 rounded" />
           ) : (
             <span
@@ -58,9 +61,19 @@ export function AppShell() {
           <span className="font-semibold text-ink">Skills LMS</span>
           {/* Tenant name is always visible. */}
           <span className="text-brand-200">/</span>
-          <span className="text-ink-soft">{tenant?.name ?? 'No tenant selected'}</span>
+          <span className="text-ink-soft">{tenant.name}</span>
         </div>
         <div className="flex items-center gap-4">
+          {session?.isPlatformOperator && (
+            <Link to="/platform" className="text-sm font-medium text-brand-700 hover:underline">
+              Platform
+            </Link>
+          )}
+          {(session?.memberships.length ?? 0) > 1 && (
+            <Link to="/choose" className="text-sm font-medium text-brand-700 hover:underline">
+              Switch organization
+            </Link>
+          )}
           <span className="text-sm text-ink-soft">{session?.displayName ?? 'Signed in'}</span>
           <button
             onClick={handleLogout}

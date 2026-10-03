@@ -90,6 +90,7 @@ class LoginView(APIView):
             {
                 "access": str(refresh.access_token),
                 "refresh": str(refresh),
+                "person": PersonSummarySerializer(person).data,
                 "memberships": MembershipSummarySerializer(memberships, many=True).data,
                 "is_platform_operator": operator,
             }
@@ -178,6 +179,7 @@ class SessionView(APIView):
                 "tenant": TenantSummarySerializer(tenant).data,
                 "capabilities": sorted(capabilities_for(request.user, tenant_id)),
                 "memberships": MembershipSummarySerializer(memberships, many=True).data,
+                "is_platform_operator": is_platform_operator(request.user),
             }
         )
 

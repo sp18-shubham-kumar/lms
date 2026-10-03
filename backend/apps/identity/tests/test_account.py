@@ -41,6 +41,7 @@ def test_login_flags_platform_operator_without_memberships():
     body = _login(APIClient(), "ops@platform.test").json()
     assert body["memberships"] == []
     assert body["is_platform_operator"] is True
+    assert body["person"]["display_name"] == "Ops"
 
 
 @pytest.mark.django_db
@@ -125,3 +126,16 @@ def test_provisioned_invitation_carries_its_accept_link():
     )
     invitation = resp.json()["invitation"]
     assert invitation["invite_url"].endswith(f"/invite/accept?token={invitation['token']}")
+
+
+@pytest.mark.django_db
+def test_session_reports_operator_flag_inside_a_tenant():
+    person, tenant = _member()
+    person.is_staff = person.is_superuser = True
+    person.save()
+    client = APIClient()
+    resp = client.get(
+        "/api/auth/session/", HTTP_X_TENANT_ID=str(tenant.id), **_bearer(client, "a@acme.test")
+    )
+    assert resp.status_code == 200
+    assert resp.json()["is_platform_operator"] is True

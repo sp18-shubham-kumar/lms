@@ -132,6 +132,7 @@ def test_login_documents_its_request_and_token_response():
     assert set(components[response_ref.rsplit("/", 1)[-1]]["properties"]) == {
         "access",
         "refresh",
+        "person",
         "memberships",
         "is_platform_operator",
     }

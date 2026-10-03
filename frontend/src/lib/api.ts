@@ -11,12 +11,15 @@
  */
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
+export const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 
 // --- Token storage (module-level; kept in localStorage for the SPA) ---------
 const ACCESS_KEY = 'lms.access'
 const REFRESH_KEY = 'lms.refresh'
 const TENANT_KEY = 'lms.tenant'
+// Display details (name, accent) of the active tenant, so a hard refresh keeps the
+// top bar and theme instead of showing "No tenant selected".
+const TENANT_PROFILE_KEY = 'lms.tenantProfile'
 
 export const tokenStore = {
   getAccess: () => localStorage.getItem(ACCESS_KEY),
@@ -34,7 +37,12 @@ export const tokenStore = {
 export const tenantStore = {
   get: () => localStorage.getItem(TENANT_KEY),
   set: (tenantId: string) => localStorage.setItem(TENANT_KEY, tenantId),
-  clear: () => localStorage.removeItem(TENANT_KEY),
+  getProfile: () => localStorage.getItem(TENANT_PROFILE_KEY),
+  setProfile: (profile: string) => localStorage.setItem(TENANT_PROFILE_KEY, profile),
+  clear: () => {
+    localStorage.removeItem(TENANT_KEY)
+    localStorage.removeItem(TENANT_PROFILE_KEY)
+  },
 }
 
 export const api: AxiosInstance = axios.create({
