@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import { api, tenantStore, tokenStore } from './api'
 
@@ -78,7 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // AuthProvider sits outside the Router.
   useEffect(() => {
     if (!hasTokenAtMount) return
-    loadSession().catch(() => logout()).finally(() => setBootstrapping(false))
+    loadSession()
+      .catch(() => logout())
+      .finally(() => setBootstrapping(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

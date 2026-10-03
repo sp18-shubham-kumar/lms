@@ -27,15 +27,36 @@ const readiness = {
   met: 1,
   total: 2,
   requirements: [
-    { skill_id: 's1', skill_name: 'SQL', criticality: 'core', min_level: 2, current_level: 2, status: 'met' },
-    { skill_id: 's2', skill_name: 'Python', criticality: 'core', min_level: 2, current_level: 1, status: 'close' },
+    {
+      skill_id: 's1',
+      skill_name: 'SQL',
+      criticality: 'core',
+      min_level: 2,
+      current_level: 2,
+      status: 'met',
+    },
+    {
+      skill_id: 's2',
+      skill_name: 'Python',
+      criticality: 'core',
+      min_level: 2,
+      current_level: 1,
+      status: 'close',
+    },
   ],
 }
 
 beforeEach(() => {
   vi.spyOn(api, 'get').mockImplementation((async (url: string) => {
     if (url.includes('job-profiles'))
-      return { data: { count: 1, next: null, previous: null, results: [{ id: 'p2', title: 'Data Engineer L2' }] } }
+      return {
+        data: {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{ id: 'p2', title: 'Data Engineer L2' }],
+        },
+      }
     return { data: readiness }
   }) as never)
 })

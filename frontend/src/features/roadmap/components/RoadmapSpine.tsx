@@ -76,7 +76,10 @@ export function RoadmapSpine({ steps }: RoadmapSpineProps) {
               style={
                 cleared
                   ? { backgroundColor: 'var(--tenant-accent)' }
-                  : { backgroundColor: '#fff', border: '2px solid color-mix(in srgb, var(--tenant-accent) 35%, white)' }
+                  : {
+                      backgroundColor: '#fff',
+                      border: '2px solid color-mix(in srgb, var(--tenant-accent) 35%, white)',
+                    }
               }
               aria-hidden="true"
             >
