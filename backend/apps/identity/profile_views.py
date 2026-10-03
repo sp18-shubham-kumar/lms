@@ -48,14 +48,17 @@ def _active_membership(person_id: Any) -> Membership:
     description=(
         "A member's profile in the active tenant: person, org unit, declared skills, "
         "verified skills and readiness snapshots. Any member may read their own "
-        "profile; reading someone else's requires directory.view. Readiness is only "
-        "included for the caller's own profile or with report.org.view."
+        "profile (also at `people/me/`); reading someone else's requires "
+        "directory.view. Readiness is only included for the caller's own profile or "
+        "with report.org.view."
     ),
     tags=["Identity"],
     responses=PersonProfileSerializer,
 )
 class PersonProfileView(APIView):
-    def get(self, request: Any, person_id: Any) -> Response:
+    def get(self, request: Any, person_id: Any = None) -> Response:
+        # ``people/me/`` routes here without a person_id.
+        person_id = person_id or request.user.id
         is_self = str(person_id) == str(request.user.id)
         if not is_self and not can(request.user, DIRECTORY_CAPABILITY):
             raise PermissionDenied("You do not have the capability required for this action.")

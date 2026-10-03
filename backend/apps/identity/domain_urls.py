@@ -10,6 +10,7 @@ from apps.identity.views import MemberImportView, OrgUnitListView, PeopleListVie
 
 urlpatterns = [
     path("people/", PeopleListView.as_view(), name="people-list"),
+    path("people/me/", PersonProfileView.as_view(), name="my-profile"),
     path("people/<uuid:person_id>/", PersonProfileView.as_view(), name="person-profile"),
     path(
         "people/<uuid:person_id>/offboard/",

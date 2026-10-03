@@ -172,3 +172,13 @@ def test_people_search_matches_name_or_email():
 
     assert [r["display_name"] for r in by_name.json()["results"]] == ["Priya Nair"]
     assert [r["display_name"] for r in by_email.json()["results"]] == ["Sam Okafor"]
+
+
+@pytest.mark.django_db
+def test_me_alias_returns_the_callers_profile():
+    tenant, _, _ = _seed_tenant("acme", "me@acme.test", [])
+
+    resp = _get(APIClient(), "/api/identity/people/me/", "me@acme.test", tenant)
+
+    assert resp.status_code == 200
+    assert resp.json()["email"] == "me@acme.test"
