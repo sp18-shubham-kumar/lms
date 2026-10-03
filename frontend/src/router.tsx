@@ -14,6 +14,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { DirectoryPage } from './pages/DirectoryPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { ProfilePage } from './pages/ProfilePage'
 import { SkillsPage } from './pages/SkillsPage'
 import { TeamPage } from './pages/TeamPage'
 
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
         children: [
           { path: '/', element: <DashboardPage /> },
           { path: '/directory', element: <DirectoryPage /> },
+          { path: '/people/:personId', element: <ProfilePage /> },
           { path: '/skills', element: <SkillsPage /> },
           { path: '/team', element: <TeamPage /> },
           { path: '/admin', element: <AdminPage /> },

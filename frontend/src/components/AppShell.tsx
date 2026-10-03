@@ -4,7 +4,7 @@
  *
  * The tenant name is pinned in the top bar permanently.
  */
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../lib/auth'
 import { useTenant } from '../lib/tenant'
@@ -61,7 +61,13 @@ export function AppShell() {
           <span className="text-ink-soft">{tenant?.name ?? 'No tenant selected'}</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-sm text-ink-soft">{session?.displayName ?? 'Signed in'}</span>
+          <Link
+            to="/people/me"
+            title="My profile"
+            className="text-sm text-ink-soft hover:text-ink hover:underline"
+          >
+            {session?.displayName ?? 'My profile'}
+          </Link>
           <button
             onClick={handleLogout}
             className="rounded-md border border-brand-100 px-3 py-1 text-sm text-ink-soft hover:bg-brand-50"
