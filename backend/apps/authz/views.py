@@ -3,14 +3,20 @@ from __future__ import annotations
 from typing import Any
 
 from django.db import transaction
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.authz.models import Capability, Role, RoleCapability, RoleGrant
-from apps.authz.serializers import RoleGrantSerializer, RoleSerializer, RoleWriteSerializer
+from apps.authz.serializers import (
+    CapabilitySerializer,
+    RoleGrantSerializer,
+    RoleSerializer,
+    RoleWriteSerializer,
+)
 from core import audit
 from core.context import get_current_tenant
 from core.idempotency import IdempotentCreateMixin
@@ -185,9 +191,23 @@ class RoleGrantViewSet(
 
     def get_queryset(self) -> Any:
         # RoleGrant.objects is tenant-scoped (fails closed with no tenant in context).
-        return RoleGrant.objects.select_related("role").order_by("-created_at")
+        qs = RoleGrant.objects.select_related("role").order_by("-created_at")
+        principal_id = self.request.query_params.get("principal_id")
+        if principal_id:
+            qs = qs.filter(principal_type="person", principal_id=principal_id)
+        return qs
 
-    @extend_schema(summary="List role grants", tags=["Authz"])
+    @extend_schema(
+        summary="List role grants",
+        tags=["Authz"],
+        parameters=[
+            OpenApiParameter(
+                "principal_id",
+                OpenApiTypes.UUID,
+                description="Only grants held by this person.",
+            )
+        ],
+    )
     def list(self, request: Any, *args: Any, **kwargs: Any) -> Response:
         return super().list(request, *args, **kwargs)
 
@@ -225,3 +245,21 @@ class RoleGrantViewSet(
             role_id=str(instance.role_id),
         )
         instance.delete()
+
+
+@extend_schema(
+    summary="List capability keys",
+    description=(
+        "Every capability key a role can bundle. The list is global and seeded; it is "
+        "what the role editor offers as checkboxes. Gated by member.invite."
+    ),
+    tags=["Authz"],
+    responses=CapabilitySerializer(many=True),
+)
+class CapabilityListView(APIView):
+    permission_classes = [*APIView.permission_classes, HasCapability]
+    required_capability = INVITE_CAPABILITY
+
+    def get(self, request: Any) -> Response:
+        keys = Capability.objects.order_by("key")
+        return Response(CapabilitySerializer(keys, many=True).data)

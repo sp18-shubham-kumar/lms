@@ -74,7 +74,13 @@ export function AppShell() {
               Switch organization
             </Link>
           )}
-          <span className="text-sm text-ink-soft">{session?.displayName ?? 'Signed in'}</span>
+          <Link
+            to="/people/me"
+            title="My profile"
+            className="text-sm text-ink-soft hover:text-ink hover:underline"
+          >
+            {session?.displayName ?? 'My profile'}
+          </Link>
           <button
             onClick={handleLogout}
             className="rounded-md border border-brand-100 px-3 py-1 text-sm text-ink-soft hover:bg-brand-50"

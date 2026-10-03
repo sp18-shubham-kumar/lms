@@ -161,3 +161,50 @@ class TenantProvisionResponseSerializer(serializers.Serializer):
     admin = PersonSummarySerializer()
     role = serializers.CharField(help_text="Name of the role granted to the first admin.")
     invitation = InvitationPayloadSerializer()
+
+
+# ─── Learner profile ───
+
+
+class _ProfileOrgUnitSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    path = serializers.CharField()
+
+
+class ProfileDeclaredSkillSerializer(serializers.Serializer):
+    skill_id = serializers.UUIDField()
+    skill_name = serializers.CharField()
+    level = serializers.IntegerField(allow_null=True)
+    note = serializers.CharField(allow_blank=True)
+
+
+class ProfileVerifiedSkillSerializer(serializers.Serializer):
+    skill_id = serializers.UUIDField()
+    skill_name = serializers.CharField()
+    level = serializers.IntegerField()
+    verified_at = serializers.DateTimeField(allow_null=True)
+
+
+class ProfileReadinessSerializer(serializers.Serializer):
+    job_profile_id = serializers.UUIDField()
+    job_profile_name = serializers.CharField()
+    met = serializers.IntegerField()
+    total = serializers.IntegerField()
+    readiness_pct = serializers.IntegerField()
+    computed_at = serializers.DateTimeField()
+
+
+class PersonProfileSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    email = serializers.EmailField()
+    display_name = serializers.CharField()
+    status = serializers.CharField()
+    joined_at = serializers.DateTimeField(allow_null=True)
+    org_unit = _ProfileOrgUnitSerializer(allow_null=True)
+    declared = ProfileDeclaredSkillSerializer(many=True)
+    verified = ProfileVerifiedSkillSerializer(many=True)
+    readiness = ProfileReadinessSerializer(
+        many=True,
+        help_text="Readiness snapshots; only for the caller's own profile or with report.org.view.",
+    )

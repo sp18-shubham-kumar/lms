@@ -189,3 +189,10 @@ def resolve_skill_view(queryset: Any, tenant_id: Any) -> list[Skill]:
             continue
         resolved.append(apply_override(skill, override))
     return resolved
+
+
+def effective_skill_names(tenant_id: Any, skills: Any) -> dict[Any, str]:
+    """This tenant's display name for each skill (override applied), keyed by skill id."""
+    skills = list(skills)
+    overrides = _overrides_for(tenant_id, [s.id for s in skills])
+    return {s.id: (getattr(overrides.get(s.id), "name", "") or s.name) for s in skills}

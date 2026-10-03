@@ -1,141 +1,113 @@
 /**
- * Admin console: member invitations, roles & capabilities (read), and CSV
- * member import.
+ * Admin console: a tab strip over the admin panels.
  *
- * Import is a two-step, pessimistic flow — Preview runs a dry-run diff, Apply
- * commits it — matching the "explicit confirm for state-changing actions" rule.
+ * Tabs are a plain array — add one by appending an entry. A tab with a
+ * ``capability`` is only shown to callers who hold it (the backend still enforces
+ * every call). ``render`` receives a small context so tabs can hand off to each
+ * other, e.g. Members → "Manage access" opens Grants with that person selected.
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
+import { useAuth } from '../../lib/auth'
 import { InvitationsPanel } from '../invitations/InvitationsPanel'
-import { useImportMembers, useRoles } from './api'
-import type { ImportDiff } from './types'
+import { GrantsPanel } from './components/GrantsPanel'
+import { ImportPanel } from './components/ImportPanel'
+import { MembersPanel } from './components/MembersPanel'
+import { RolesPanel } from './components/RolesPanel'
 
-const SAMPLE_CSV = `email,display_name,org_unit_path,role,employee_ref
-newbie@acme.test,New Bie,,Learner,E100`
+export interface AdminTabContext {
+  /** Switch to another tab by id. */
+  openTab: (id: string) => void
+  /** Person preselected on the Grants tab. */
+  grantsPersonId: string | null
+  setGrantsPersonId: (personId: string | null) => void
+}
 
-export function AdminConsole() {
-  const roles = useRoles()
-  const importer = useImportMembers()
+export interface AdminTab {
+  id: string
+  label: string
+  capability?: string
+  render: (ctx: AdminTabContext) => ReactNode
+}
 
-  const [csv, setCsv] = useState(SAMPLE_CSV)
-  const [preview, setPreview] = useState<ImportDiff | null>(null)
-  const [committed, setCommitted] = useState(false)
+export const ADMIN_TABS: AdminTab[] = [
+  {
+    id: 'members',
+    label: 'Members',
+    capability: 'directory.view',
+    render: (ctx) => (
+      <MembersPanel
+        onManageAccess={(personId) => {
+          ctx.setGrantsPersonId(personId)
+          ctx.openTab('grants')
+        }}
+      />
+    ),
+  },
+  {
+    id: 'invitations',
+    label: 'Invitations',
+    capability: 'member.invite',
+    render: () => <InvitationsPanel />,
+  },
+  { id: 'roles', label: 'Roles', capability: 'member.invite', render: () => <RolesPanel /> },
+  {
+    id: 'grants',
+    label: 'Grants',
+    capability: 'member.invite',
+    render: (ctx) => (
+      <GrantsPanel personId={ctx.grantsPersonId} onPersonChange={ctx.setGrantsPersonId} />
+    ),
+  },
+  { id: 'import', label: 'Import', capability: 'member.invite', render: () => <ImportPanel /> },
+]
 
-  const runPreview = async () => {
-    setCommitted(false)
-    const diff = await importer.mutateAsync({ csv, commit: false })
-    setPreview(diff)
-  }
-  const runApply = async () => {
-    const diff = await importer.mutateAsync({ csv, commit: true })
-    setPreview(diff)
-    setCommitted(true)
-  }
+export function AdminConsole({ tabs = ADMIN_TABS }: { tabs?: AdminTab[] }) {
+  const { hasCapability } = useAuth()
+  const visible = tabs.filter((t) => !t.capability || hasCapability(t.capability))
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [grantsPersonId, setGrantsPersonId] = useState<string | null>(null)
+
+  const active = visible.find((t) => t.id === activeId) ?? visible[0]
 
   return (
-    <section className="mx-auto max-w-3xl space-y-8">
+    <section className="mx-auto max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-ink">Admin</h1>
         <p className="mt-1 text-sm text-ink-soft">
-          Invitations, roles, capabilities, and member import.
+          Members, invitations, roles, access and import.
         </p>
       </div>
 
-      <InvitationsPanel />
-
-      {/* Roles */}
-      <div>
-        <h2 className="text-sm font-semibold text-ink">Roles &amp; capabilities</h2>
-        {roles.isLoading ? (
-          <p className="mt-2 text-ink-soft">Loading roles…</p>
-        ) : (
-          <div className="mt-3 grid gap-3 sm:grid-cols-3">
-            {(roles.data ?? []).map((r) => (
-              <div key={r.id} className="rounded-xl border border-brand-100 bg-white p-3.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-ink">{r.name}</span>
-                  {r.is_system && (
-                    <span className="font-mono text-[9px] uppercase tracking-wide text-ink-soft">
-                      system
-                    </span>
-                  )}
-                </div>
-                <ul className="mt-2 space-y-0.5">
-                  {r.capabilities.map((c) => (
-                    <li key={c} className="font-mono text-[10.5px] text-ink-soft">
-                      {c}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+      {visible.length === 0 ? (
+        <p className="text-ink-soft">You don’t have access to any admin tools.</p>
+      ) : (
+        <>
+          <div role="tablist" className="flex gap-1 border-b border-brand-100">
+            {visible.map((t) => {
+              const selected = t.id === active?.id
+              return (
+                <button
+                  key={t.id}
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setActiveId(t.id)}
+                  className={`-mb-px border-b-2 px-3 py-2 text-[13px] font-semibold ${
+                    selected
+                      ? 'border-[var(--tenant-accent)] text-ink'
+                      : 'border-transparent text-ink-soft hover:text-ink'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              )
+            })}
           </div>
-        )}
-      </div>
-
-      {/* Member import */}
-      <div>
-        <h2 className="text-sm font-semibold text-ink">Member import</h2>
-        <p className="mt-1 text-[12.5px] text-ink-soft">
-          Columns: <code>email, display_name, org_unit_path, role, employee_ref</code>. Preview is a
-          dry run; Apply commits.
-        </p>
-        <textarea
-          value={csv}
-          onChange={(e) => setCsv(e.target.value)}
-          rows={5}
-          className="mt-2 w-full rounded-lg border border-brand-100 bg-white p-3 font-mono text-[12px] text-ink"
-          spellCheck={false}
-        />
-        <div className="mt-2 flex items-center gap-2">
-          <button
-            onClick={() => void runPreview()}
-            disabled={importer.isPending}
-            className="rounded-lg border border-brand-200 px-3 py-1.5 text-[13px] font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50"
-          >
-            Preview
-          </button>
-          <button
-            onClick={() => void runApply()}
-            disabled={importer.isPending || !preview}
-            className="rounded-lg px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
-            style={{ backgroundColor: 'var(--tenant-accent)' }}
-          >
-            Apply
-          </button>
-          {importer.isError && <span className="text-[12.5px] text-red-600">Import failed.</span>}
-        </div>
-
-        {preview && (
-          <div className="mt-3 rounded-xl border border-brand-100 bg-white p-4 text-[13px]">
-            <div className="flex gap-4 font-mono text-[12px] text-ink-soft">
-              <span>
-                <span className="font-semibold text-ink">{preview.adds.length}</span> add
-              </span>
-              <span>
-                <span className="font-semibold text-ink">{preview.updates.length}</span> update
-              </span>
-              <span>
-                <span className="font-semibold text-ink">{preview.errors.length}</span> error
-              </span>
-              {committed && <span className="font-semibold text-brand-700">· applied ✓</span>}
-            </div>
-            <ul className="mt-2 space-y-1">
-              {preview.adds.map((r) => (
-                <li key={`a${r.row}`} className="text-ink-soft">
-                  <span className="font-mono text-brand-700">+ add</span> {r.email} ({r.role})
-                </li>
-              ))}
-              {preview.updates.map((r) => (
-                <li key={`u${r.row}`} className="text-ink-soft">
-                  <span className="font-mono text-ink">~ update</span> {r.email} ({r.role})
-                </li>
-              ))}
-            </ul>
+          <div role="tabpanel">
+            {active?.render({ openTab: setActiveId, grantsPersonId, setGrantsPersonId })}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </section>
   )
 }
