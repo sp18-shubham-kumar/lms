@@ -23,6 +23,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/skills', label: 'Skills', capability: 'skill.claim.submit' },
   { to: '/directory', label: 'Directory', capability: 'directory.view' },
   { to: '/team', label: 'Team', capability: 'report.org.view' },
+  { to: '/framework', label: 'Framework', capability: 'taxonomy.edit' },
+  { to: '/verify', label: 'Verify', capability: 'skill.verify' },
   { to: '/admin', label: 'Admin', capability: 'member.invite' },
 ]
 
