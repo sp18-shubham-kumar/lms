@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -295,7 +296,12 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
 @extend_schema_view(
     list=extend_schema(summary="List my skill declarations", tags=["Skills"]),
     create=extend_schema(summary="Declare a skill", tags=["Skills"]),
-    destroy=extend_schema(summary="Remove a skill declaration", tags=["Skills"]),
+    destroy=extend_schema(
+        summary="Remove a skill declaration",
+        tags=["Skills"],
+        # The queryset needs the caller's membership, so the id type can't be inferred.
+        parameters=[OpenApiParameter("id", OpenApiTypes.UUID, OpenApiParameter.PATH)],
+    ),
 )
 @extend_schema(tags=["Skills"])
 class SelfDeclaredSkillViewSet(

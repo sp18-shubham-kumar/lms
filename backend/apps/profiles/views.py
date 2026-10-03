@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -26,7 +27,9 @@ from rest_framework.views import APIView
 from apps.profiles import services
 from apps.profiles.models import JobProfile, ProfileRequirement, ReadinessSnapshot, Track
 from apps.profiles.serializers import (
+    HeatmapSerializer,
     JobProfileSerializer,
+    MeReadinessSerializer,
     ProfileRequirementSerializer,
     ReadinessSnapshotSerializer,
     TrackSerializer,
@@ -276,6 +279,14 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
             "Remove a skill requirement from this job profile by requirement ID. "
             "Requires jobprofile.edit. Audited."
         ),
+        parameters=[
+            OpenApiParameter(
+                "req_id",
+                OpenApiTypes.UUID,
+                OpenApiParameter.PATH,
+                description="ID of the ProfileRequirement to remove.",
+            )
+        ],
         responses={204: None},
         tags=["Profiles"],
     )
@@ -344,6 +355,7 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         )
     ],
     tags=["Profiles"],
+    responses=MeReadinessSerializer,
 )
 class MeReadinessView(APIView):
     """
@@ -484,10 +496,15 @@ class TeamReadinessView(mixins.ListModelMixin, viewsets.GenericViewSet):
         "Requires report.org.view."
     ),
     parameters=[
-        OpenApiParameter("org_unit", description="UUID of the root OrgUnit.", type=str),
-        OpenApiParameter("job_profile", description="UUID of the target JobProfile.", type=str),
+        OpenApiParameter(
+            "org_unit", description="UUID of the root OrgUnit.", required=True, type=str
+        ),
+        OpenApiParameter(
+            "job_profile", description="UUID of the target JobProfile.", required=True, type=str
+        ),
     ],
     tags=["Profiles"],
+    responses=HeatmapSerializer,
 )
 class HeatmapView(APIView):
     """

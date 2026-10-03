@@ -12,7 +12,10 @@ from rest_framework.views import APIView
 
 from apps.identity.invitation_service import InvitationError
 from apps.identity.provision import ProvisionError, provision_tenant
-from apps.identity.serializers import TenantProvisionSerializer
+from apps.identity.serializers import (
+    TenantProvisionResponseSerializer,
+    TenantProvisionSerializer,
+)
 
 
 class IsPlatformOperator(BasePermission):
@@ -38,6 +41,7 @@ class IsPlatformOperator(BasePermission):
     ),
     tags=["Platform"],
     request=TenantProvisionSerializer,
+    responses={201: TenantProvisionResponseSerializer},
 )
 class TenantProvisionView(APIView):
     permission_classes = [IsAuthenticated, IsPlatformOperator]

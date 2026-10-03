@@ -18,12 +18,15 @@ from apps.identity import import_service
 from apps.identity.invitation_service import InvitationError, accept_invitation
 from apps.identity.models import Membership, OrgUnit, Tenant
 from apps.identity.serializers import (
+    InvitationAcceptResponseSerializer,
     InvitationAcceptSerializer,
+    LoginResponseSerializer,
     LoginSerializer,
     MembershipSummarySerializer,
     OrgUnitSerializer,
     PersonDirectorySerializer,
     PersonSummarySerializer,
+    SessionSerializer,
     TenantSummarySerializer,
 )
 from apps.skills.models import SelfDeclaredSkill
@@ -44,6 +47,17 @@ class CSVParser(BaseParser):
         return stream.read().decode("utf-8")
 
 
+@extend_schema(
+    summary="Log in",
+    description=(
+        "Public. Exchanges email + password for a JWT pair and the person's active "
+        "memberships. Send no X-Tenant-Id. Use `access` as the Bearer token and a "
+        "membership's `tenant_id` as X-Tenant-Id on every later call."
+    ),
+    tags=["Identity"],
+    request=LoginSerializer,
+    responses=LoginResponseSerializer,
+)
 class LoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes: list = []
@@ -88,6 +102,7 @@ class LoginView(APIView):
     ),
     tags=["Identity"],
     request=InvitationAcceptSerializer,
+    responses=InvitationAcceptResponseSerializer,
 )
 class InvitationAcceptView(APIView):
     """The join path for a pending invitation, including the first tenant admin."""
@@ -108,6 +123,15 @@ class InvitationAcceptView(APIView):
         return Response(payload)
 
 
+@extend_schema(
+    summary="Current session",
+    description=(
+        "The caller's person, the active tenant, the capability keys they hold in it, "
+        "and all their active memberships. The SPA gates navigation on `capabilities`."
+    ),
+    tags=["Identity"],
+    responses=SessionSerializer,
+)
 class SessionView(APIView):
     """Who am I, in this tenant. Default permissions require auth + membership."""
 

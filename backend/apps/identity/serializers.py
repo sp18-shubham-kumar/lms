@@ -85,3 +85,53 @@ class OrgUnitSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrgUnit
         fields = ["id", "name", "path", "parent"]
+
+
+# ─── Response shapes (OpenAPI documentation for the hand-built APIView payloads) ───
+
+
+class LoginResponseSerializer(serializers.Serializer):
+    access = serializers.CharField(help_text="JWT access token. Send as `Authorization: Bearer`.")
+    refresh = serializers.CharField(help_text="JWT refresh token for /api/auth/token/refresh/.")
+    memberships = MembershipSummarySerializer(
+        many=True, help_text="Tenants the person can act in. Use a `tenant_id` as X-Tenant-Id."
+    )
+
+
+class SessionSerializer(serializers.Serializer):
+    person = PersonSummarySerializer()
+    tenant = TenantSummarySerializer()
+    capabilities = serializers.ListField(
+        child=serializers.CharField(), help_text="Capability keys held in the active tenant."
+    )
+    memberships = MembershipSummarySerializer(many=True)
+
+
+class InvitationPayloadSerializer(serializers.Serializer):
+    """An invitation as returned by create/resend. ``token`` is shown exactly once."""
+
+    id = serializers.UUIDField()
+    email = serializers.EmailField()
+    role = serializers.CharField()
+    role_id = serializers.UUIDField(allow_null=True)
+    status = serializers.ChoiceField(choices=Invitation.Status.choices)
+    expires_at = serializers.DateTimeField()
+    token = serializers.CharField(required=False, help_text="Raw accept token, returned once.")
+
+
+class InvitationAcceptResponseSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    tenant_id = serializers.UUIDField()
+
+
+class _ProvisionedTenantSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    slug = serializers.SlugField()
+
+
+class TenantProvisionResponseSerializer(serializers.Serializer):
+    tenant = _ProvisionedTenantSerializer()
+    admin = PersonSummarySerializer()
+    role = serializers.CharField(help_text="Name of the role granted to the first admin.")
+    invitation = InvitationPayloadSerializer()

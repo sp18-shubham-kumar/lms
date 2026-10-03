@@ -141,7 +141,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "core.pagination.DefaultPagination",
     "PAGE_SIZE": 25,
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "core.schema.TenantAwareAutoSchema",
     "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",
 }
 
@@ -157,6 +157,31 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Multi-tenant skills platform. See docs/specs/ for the design.",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Separate request/response components so read-only fields (id, timestamps)
+    # don't appear as inputs in Swagger's "Try it out" bodies.
+    "COMPONENT_SPLIT_REQUEST": True,
+    # The X-Tenant-Id security scheme. core.schema.TenantAwareAutoSchema attaches it
+    # (by name) to every operation that enforces tenant membership.
+    "APPEND_COMPONENTS": {
+        "securitySchemes": {
+            "tenantHeader": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Tenant-Id",
+                "description": (
+                    "UUID of the active tenant. Take a `tenant_id` from the `memberships` "
+                    "returned by `POST /api/auth/login/`."
+                ),
+            }
+        }
+    },
+    # Keep the JWT + tenant entered under "Authorize" across page reloads.
+    "SWAGGER_UI_SETTINGS": {"persistAuthorization": True},
+    # Skills and job profiles share one lifecycle; invitations have their own.
+    "ENUM_NAME_OVERRIDES": {
+        "LifecycleStatusEnum": "apps.skills.models.Skill.STATUS_CHOICES",
+        "InvitationStatusEnum": "apps.identity.models.Invitation.Status",
+    },
 }
 
 # --- CORS -------------------------------------------------------------------

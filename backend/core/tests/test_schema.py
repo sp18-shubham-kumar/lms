@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from rest_framework.test import APIClient
 
@@ -65,3 +67,64 @@ def test_schema_includes_part_b_paths():
                 continue
             assert operation.get("summary"), f"{method} {path} missing summary in schema"
             assert operation.get("tags"), f"{method} {path} missing tag in schema"
+
+
+def test_schema_generates_without_warnings():
+    """Any undocumented view or untyped parameter fails the build, not just the docs."""
+    from django.core.management import call_command
+
+    call_command("spectacular", "--validate", "--fail-on-warn", "--file", os.devnull)
+
+
+def _operation_security(schema: dict, method: str, path: str) -> set[str]:
+    requirements = schema["paths"][path][method].get("security", [])
+    return {name for requirement in requirements for name in requirement}
+
+
+@pytest.mark.django_db
+def test_tenant_header_is_required_only_where_membership_is_enforced():
+    """Swagger's Authorize must offer X-Tenant-Id exactly where the API demands it."""
+    client = APIClient()
+    schema = client.get("/api/schema/", HTTP_ACCEPT="application/vnd.oai.openapi+json").json()
+
+    assert schema["components"]["securitySchemes"]["tenantHeader"] == {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Tenant-Id",
+        "description": schema["components"]["securitySchemes"]["tenantHeader"]["description"],
+    }
+
+    for method, path in [
+        ("get", "/api/auth/session/"),
+        ("get", "/api/identity/people/"),
+        ("get", "/api/profiles/heatmap/"),
+        ("post", "/api/skills/me/declarations/"),
+    ]:
+        assert _operation_security(schema, method, path) == {"jwtAuth", "tenantHeader"}, path
+
+    for method, path in [
+        ("post", "/api/auth/login/"),
+        ("post", "/api/auth/invitations/accept/"),
+        ("get", "/api/health/"),
+    ]:
+        assert "tenantHeader" not in _operation_security(schema, method, path), path
+
+    # Platform operators provision tenants they don't belong to: JWT only.
+    assert _operation_security(schema, "post", "/api/platform/tenants/") == {"jwtAuth"}
+
+
+@pytest.mark.django_db
+def test_login_documents_its_request_and_token_response():
+    client = APIClient()
+    schema = client.get("/api/schema/", HTTP_ACCEPT="application/vnd.oai.openapi+json").json()
+    login = schema["paths"]["/api/auth/login/"]["post"]
+
+    request_ref = login["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+    response_ref = login["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+    components = schema["components"]["schemas"]
+    assert set(components[request_ref.rsplit("/", 1)[-1]]["properties"]) == {"email", "password"}
+    assert set(components[response_ref.rsplit("/", 1)[-1]]["properties"]) == {
+        "access",
+        "refresh",
+        "memberships",
+    }
