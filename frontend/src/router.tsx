@@ -9,6 +9,9 @@ import { createBrowserRouter } from 'react-router-dom'
 
 import { AppShell } from './components/AppShell'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { CareerPathsPage } from './features/career-paths/CareerPathsPage'
+import { JobProfileDetail } from './features/career-paths/JobProfileDetail'
+import { MemberReadinessPage } from './features/team/MemberReadinessPage'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { AdminPage } from './pages/AdminPage'
 import { ChooseTenantPage } from './pages/ChooseTenantPage'
@@ -43,6 +46,9 @@ export const router = createBrowserRouter([
           { path: '/framework', element: <FrameworkPage /> },
           { path: '/framework/skills/:id', element: <SkillEditorPage /> },
           { path: '/verify', element: <VerifyPage /> },
+          { path: '/team/members/:membershipId', element: <MemberReadinessPage /> },
+          { path: '/career-paths', element: <CareerPathsPage /> },
+          { path: '/career-paths/:id', element: <JobProfileDetail /> },
           { path: '/admin', element: <AdminPage /> },
         ],
       },

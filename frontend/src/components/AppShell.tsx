@@ -25,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/team', label: 'Team', capability: 'report.org.view' },
   { to: '/framework', label: 'Framework', capability: 'taxonomy.edit' },
   { to: '/verify', label: 'Verify', capability: 'skill.verify' },
+  { to: '/career-paths', label: 'Career paths', capability: 'jobprofile.edit' },
   { to: '/admin', label: 'Admin', capability: 'member.invite' },
 ]
 

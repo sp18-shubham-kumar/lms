@@ -3,24 +3,32 @@
  *
  * Needs an org_unit and a job_profile; both are chosen from dropdowns fed by the
  * org-units and job-profiles endpoints. Cells show ✓ / · so status never rides
- * on colour alone.
+ * on colour alone. Each member links to their gap view for the chosen target;
+ * "One gap from promotion" narrows to members missing exactly one requirement.
  */
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { useJobProfiles } from '../roadmap/api'
 import { useHeatmap, useOrgUnits } from './api'
+import { memberReadinessPath } from './memberLink'
+import type { HeatmapRow } from './types'
+
+const unmetCount = (row: HeatmapRow) => row.cells.filter((c) => !c.met).length
 
 export function TeamHeatmap() {
   const orgUnits = useOrgUnits()
   const profiles = useJobProfiles(true)
   const [orgUnitSel, setOrgUnitSel] = useState<string | null>(null)
   const [jobProfileSel, setJobProfileSel] = useState<string | null>(null)
+  const [oneGapOnly, setOneGapOnly] = useState(false)
 
   // Effective selection: explicit choice, else default to the first loaded.
   const orgUnit = orgUnitSel ?? orgUnits.data?.[0]?.id ?? null
   const jobProfile = jobProfileSel ?? profiles.data?.[0]?.id ?? null
 
   const heatmap = useHeatmap(orgUnit, jobProfile)
+  const rows = (heatmap.data?.rows ?? []).filter((r) => !oneGapOnly || unmetCount(r) === 1)
 
   return (
     <div className="mt-8">
@@ -51,6 +59,14 @@ export function TeamHeatmap() {
             </option>
           ))}
         </select>
+        <label className="flex items-center gap-1.5 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={oneGapOnly}
+            onChange={(e) => setOneGapOnly(e.target.checked)}
+          />
+          One gap from promotion
+        </label>
       </div>
 
       {(orgUnits.isError || profiles.isError) && (
@@ -61,7 +77,7 @@ export function TeamHeatmap() {
       )}
       {heatmap.isLoading && <p className="mt-3 text-ink-soft">Loading heatmap…</p>}
       {heatmap.isError && <p className="mt-3 text-ink-soft">Could not load the heatmap.</p>}
-      {heatmap.data && heatmap.data.rows.length > 0 ? (
+      {heatmap.data && rows.length > 0 ? (
         <div className="mt-3 overflow-x-auto">
           <table className="border-separate border-spacing-1 text-[12px]">
             <thead>
@@ -75,10 +91,15 @@ export function TeamHeatmap() {
               </tr>
             </thead>
             <tbody>
-              {heatmap.data.rows.map((row) => (
+              {rows.map((row) => (
                 <tr key={row.membership_id}>
                   <td className="whitespace-nowrap px-2 py-1 font-medium text-ink">
-                    {row.display_name}
+                    <Link
+                      to={memberReadinessPath(row.membership_id, jobProfile)}
+                      className="hover:underline"
+                    >
+                      {row.display_name}
+                    </Link>
                   </td>
                   {row.cells.map((cell, i) => (
                     <td
@@ -100,7 +121,13 @@ export function TeamHeatmap() {
           </table>
         </div>
       ) : (
-        heatmap.data && <p className="mt-3 text-ink-soft">No members in this org unit yet.</p>
+        heatmap.data && (
+          <p className="mt-3 text-ink-soft">
+            {oneGapOnly && heatmap.data.rows.length > 0
+              ? 'Nobody here is exactly one requirement away.'
+              : 'No members in this org unit yet.'}
+          </p>
+        )
       )}
     </div>
   )
