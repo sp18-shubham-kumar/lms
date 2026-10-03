@@ -12,14 +12,13 @@ Endpoints:
 
 from __future__ import annotations
 
-import uuid
 from typing import Any
 
 from django.http import Http404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
-from rest_framework.exceptions import ParseError, PermissionDenied
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -35,6 +34,7 @@ from apps.learning.serializers import (
 from core import audit
 from core.context import get_current_tenant
 from core.idempotency import IdempotentCreateMixin
+from core.params import uuid_param
 from core.permissions import HasCapability, can
 
 READ_CAPABILITY = "directory.view"
@@ -111,8 +111,9 @@ class LearningResourceViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
                 qs = qs.filter(status=params["status"])
         else:
             qs = qs.filter(status="published")
-        if params.get("skill"):
-            qs = qs.filter(skill_links__skill_id=params["skill"])
+        skill_id = uuid_param(self.request, "skill")
+        if skill_id:
+            qs = qs.filter(skill_links__skill_id=skill_id)
         if params.get("kind"):
             qs = qs.filter(kind=params["kind"])
         if params.get("q"):
@@ -180,7 +181,6 @@ class MyProgressViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
 ):
     """The caller's own learning progress. A member only ever sees and edits their own rows."""
@@ -229,19 +229,12 @@ class MyProgressViewSet(
 class MyRecommendationsView(APIView):
     required_capability = LEARN_CAPABILITY
 
-    def get_permissions(self) -> list[Any]:
-        return [*(perm() for perm in super().permission_classes), HasCapability()]
+    permission_classes = [*APIView.permission_classes, HasCapability]
 
     def get(self, request: Any) -> Response:
         from apps.profiles.models import JobProfile
 
-        target = request.query_params.get("target")
-        if not target:
-            raise ParseError("Query parameter 'target' is required.")
-        try:
-            target_id = uuid.UUID(target)
-        except ValueError as exc:
-            raise ParseError("Query parameter 'target' must be a job profile id.") from exc
+        target_id = uuid_param(request, "target", required=True)
         profile = JobProfile.objects.filter(id=target_id).first()
         if profile is None:
             raise Http404

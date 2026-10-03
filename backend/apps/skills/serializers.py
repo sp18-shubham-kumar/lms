@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework import serializers
 
 from apps.skills.models import (
@@ -13,6 +15,36 @@ from apps.skills.models import (
 )
 
 
+class VisibleSkillField(serializers.PrimaryKeyRelatedField):
+    """
+    A Skill choice limited to globals + the current tenant's own skills.
+
+    ``Skill.objects`` is unscoped by design (seeding must read globals), so a plain
+    ``PrimaryKeyRelatedField`` would accept another tenant's skill. The queryset is
+    resolved per request, so the tenant in context is the caller's.
+    """
+
+    default_error_messages = {
+        **serializers.PrimaryKeyRelatedField.default_error_messages,
+        "does_not_exist": "Unknown skill.",
+    }
+
+    def get_queryset(self) -> Any:
+        return Skill.objects.visible()
+
+
+class VisibleSkillDomainField(serializers.PrimaryKeyRelatedField):
+    """A SkillDomain choice limited to globals + the current tenant's own domains."""
+
+    default_error_messages = {
+        **serializers.PrimaryKeyRelatedField.default_error_messages,
+        "does_not_exist": "Unknown skill domain.",
+    }
+
+    def get_queryset(self) -> Any:
+        return SkillDomain.objects.visible()
+
+
 class SkillDomainSerializer(serializers.ModelSerializer):
     """A skill grouping. Global domains (``tenant`` NULL) are read-only to tenants."""
 
@@ -24,6 +56,8 @@ class SkillDomainSerializer(serializers.ModelSerializer):
 
 class SkillSerializer(serializers.ModelSerializer):
     """A versioned capability. ``tenant``/``status``/``version`` are server-managed."""
+
+    domain: VisibleSkillDomainField = VisibleSkillDomainField()
 
     class Meta:
         model = Skill
@@ -43,6 +77,8 @@ class SkillSerializer(serializers.ModelSerializer):
 
 class SelfDeclaredSkillSerializer(serializers.ModelSerializer):
     """A caller's self-claim. ``membership``/``tenant`` are resolved server-side."""
+
+    skill: VisibleSkillField = VisibleSkillField()
 
     class Meta:
         model = SelfDeclaredSkill
@@ -83,6 +119,8 @@ class SkillLevelsReplaceSerializer(serializers.Serializer):
 class SkillEdgeSerializer(serializers.ModelSerializer):
     """A prerequisite/adjacent edge from one skill to another."""
 
+    to_skill: VisibleSkillField = VisibleSkillField()
+
     class Meta:
         model = SkillEdge
         fields = ["id", "from_skill", "to_skill", "kind"]
@@ -114,6 +152,8 @@ class SkillAssertionSerializer(serializers.ModelSerializer):
     server-managed (version pinned from the skill at record time).
     """
 
+    skill: VisibleSkillField = VisibleSkillField()
+
     class Meta:
         model = SkillAssertion
         fields = [
@@ -133,6 +173,17 @@ class SkillAssertionSerializer(serializers.ModelSerializer):
         if not (1 <= value <= 5):
             raise serializers.ValidationError("level must be between 1 and 5.")
         return value
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        # SkillLevel isn't tenant-scoped; its visibility follows its skill. Requiring it
+        # to belong to the (visible) asserted skill keeps both on the same skill.
+        skill_level = attrs.get("skill_level")
+        skill = attrs.get("skill") or getattr(self.instance, "skill", None)
+        if skill_level is not None and (skill is None or skill_level.skill_id != skill.id):
+            raise serializers.ValidationError(
+                {"skill_level": "This level belongs to a different skill."}
+            )
+        return attrs
 
 
 class SkillClaimSerializer(serializers.ModelSerializer):

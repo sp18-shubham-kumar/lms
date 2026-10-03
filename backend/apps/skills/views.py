@@ -39,6 +39,7 @@ from apps.skills.serializers import (
 from core import audit
 from core.context import get_current_tenant
 from core.idempotency import IdempotentCreateMixin
+from core.params import uuid_param
 from core.permissions import HasCapability
 
 READ_CAPABILITY = "directory.view"
@@ -279,7 +280,7 @@ class SkillViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         self._reject_global(skill)
 
         if request.method == "DELETE":
-            edge_id = request.query_params.get("edge")
+            edge_id = uuid_param(request, "edge")
             edge = SkillEdge.objects.visible().filter(id=edge_id, from_skill=skill).first()
             if edge is None:
                 from django.http import Http404

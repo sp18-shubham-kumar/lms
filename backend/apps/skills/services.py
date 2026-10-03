@@ -263,11 +263,28 @@ def record_assertion(
     try:
         from apps.profiles.services import recompute_for_membership
 
-        recompute_for_membership(assertion.membership)
+        # Savepoint: a database error here must not poison a caller's open
+        # transaction (verify_claim), or "non-fatal" would still fail the request.
+        with transaction.atomic():
+            recompute_for_membership(assertion.membership)
     except Exception:  # noqa: BLE001
         # Non-fatal: readiness recompute failure must not break the assertion write.
         logger.exception("readiness recompute failed after assertion write")
     return assertion
+
+
+def _lock_for_review(claim: SelfDeclaredSkill, actor: Any) -> SelfDeclaredSkill:
+    """
+    Re-read the claim under a row lock and check it is still reviewable. Call inside
+    a transaction: concurrent reviewers serialize here, so only one can close it.
+    """
+    locked = (
+        SelfDeclaredSkill.all_tenants.select_for_update(of=("self",))
+        .select_related("membership__person", "skill")
+        .get(pk=claim.pk)
+    )
+    _ensure_reviewable(locked, actor)
+    return locked
 
 
 def _ensure_reviewable(claim: SelfDeclaredSkill, actor: Any) -> None:
@@ -294,8 +311,8 @@ def verify_claim(
     Verify a pending claim at ``level`` (which may differ from the claimed level):
     records the assertion and closes the claim. Self-review is refused.
     """
-    _ensure_reviewable(claim, actor)
     with transaction.atomic():
+        claim = _lock_for_review(claim, actor)
         assertion = record_assertion(
             membership=claim.membership,
             skill=claim.skill,
@@ -310,13 +327,14 @@ def verify_claim(
 
 def reject_claim(claim: SelfDeclaredSkill, *, actor: Any, note: str) -> SelfDeclaredSkill:
     """Reject a pending claim with a reason. No assertion is recorded. Audited."""
-    _ensure_reviewable(claim, actor)
-    _mark_reviewed(claim, SelfDeclaredSkill.ReviewStatus.REJECTED, actor, note)
-    audit.record(
-        actor=actor,
-        action="skill.claim.reject",
-        resource=claim,
-        tenant_id=claim.tenant_id,
-        skill_id=str(claim.skill_id),
-    )
+    with transaction.atomic():
+        claim = _lock_for_review(claim, actor)
+        _mark_reviewed(claim, SelfDeclaredSkill.ReviewStatus.REJECTED, actor, note)
+        audit.record(
+            actor=actor,
+            action="skill.claim.reject",
+            resource=claim,
+            tenant_id=claim.tenant_id,
+            skill_id=str(claim.skill_id),
+        )
     return claim

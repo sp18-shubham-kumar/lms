@@ -41,6 +41,7 @@ from apps.profiles.serializers import (
 from core import audit
 from core.context import get_current_tenant
 from core.idempotency import IdempotentCreateMixin
+from core.params import uuid_param
 from core.permissions import HasCapability
 
 EDIT_CAPABILITY = "jobprofile.edit"
@@ -257,7 +258,7 @@ class JobProfileViewSet(IdempotentCreateMixin, viewsets.ModelViewSet):
         qs = JobProfile.objects.select_related("track")
         if self.action == "list":
             status_filter = self.request.query_params.get("status")
-            track_filter = self.request.query_params.get("track")
+            track_filter = uuid_param(self.request, "track")
             if status_filter:
                 qs = qs.filter(status=status_filter)
             if track_filter:
@@ -478,12 +479,7 @@ class MeReadinessView(APIView):
 
     required_capability = "skill.claim.submit"
 
-    def get_permissions(self) -> list[Any]:
-        from core.permissions import HasCapability
-
-        perms = [perm() for perm in super().permission_classes]
-        perms.append(HasCapability())
-        return perms
+    permission_classes = [*APIView.permission_classes, HasCapability]
 
     def get(self, request: Any) -> Response:
         from apps.identity.models import Membership
@@ -502,9 +498,7 @@ def _target_profile(request: Any) -> JobProfile:
     """The JobProfile named by the required ``target`` query parameter (tenant-scoped)."""
     from django.http import Http404
 
-    target_id = request.query_params.get("target")
-    if not target_id:
-        raise ParseError("Query parameter 'target' is required.")
+    target_id = uuid_param(request, "target", required=True)
     profile = JobProfile.objects.filter(id=target_id).first()
     if profile is None:
         raise Http404
@@ -539,10 +533,7 @@ class MemberReadinessView(APIView):
 
     required_capability = "report.org.view"
 
-    def get_permissions(self) -> list[Any]:
-        perms = [perm() for perm in super().permission_classes]
-        perms.append(HasCapability())
-        return perms
+    permission_classes = [*APIView.permission_classes, HasCapability]
 
     def get(self, request: Any, membership_id: Any) -> Response:
         from django.http import Http404
@@ -591,15 +582,10 @@ class TeamReadinessView(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = ReadinessSnapshotSerializer
     required_capability = "report.org.view"
 
-    def get_permissions(self) -> list[Any]:
-        from core.permissions import HasCapability
-
-        perms = [perm() for perm in APIView.permission_classes]
-        perms.append(HasCapability())
-        return perms
+    permission_classes = [*APIView.permission_classes, HasCapability]
 
     def get_queryset(self) -> Any:
-        job_profile_id = self.request.query_params.get("job_profile")
+        job_profile_id = uuid_param(self.request, "job_profile")
         qs = ReadinessSnapshot.objects.select_related("membership__person")
         if job_profile_id:
             qs = qs.filter(job_profile_id=job_profile_id)
@@ -636,18 +622,13 @@ class HeatmapView(APIView):
 
     required_capability = "report.org.view"
 
-    def get_permissions(self) -> list[Any]:
-        from core.permissions import HasCapability
-
-        perms = [perm() for perm in super().permission_classes]
-        perms.append(HasCapability())
-        return perms
+    permission_classes = [*APIView.permission_classes, HasCapability]
 
     def get(self, request: Any) -> Response:
         from apps.identity.models import Membership, OrgUnit
 
-        org_unit_id = request.query_params.get("org_unit")
-        job_profile_id = request.query_params.get("job_profile")
+        org_unit_id = uuid_param(request, "org_unit")
+        job_profile_id = uuid_param(request, "job_profile")
 
         if not org_unit_id or not job_profile_id:
             raise ParseError("Query parameters 'org_unit' and 'job_profile' are required.")
@@ -704,9 +685,13 @@ class HeatmapView(APIView):
         }
         # Readiness is computed, never assumed: a member with no snapshot yet (they've
         # never opened this target) gets one now rather than rendering as all-unmet.
-        for member in unique_members:
-            if member.id not in snapshot_map:
-                snapshot_map[member.id] = services.compute_readiness(member, profile)
+        unsnapshotted = [m for m in unique_members if m.id not in snapshot_map]
+        if unsnapshotted:
+            requirements = services.profile_requirements(profile)
+            for member in unsnapshotted:
+                snapshot_map[member.id] = services.compute_readiness(
+                    member, profile, requirements=requirements
+                )
 
         columns = [{"skill_id": str(r.skill_id), "skill_name": r.skill.name} for r in core_reqs]
 

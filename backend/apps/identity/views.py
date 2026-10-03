@@ -35,6 +35,7 @@ from apps.skills.models import SelfDeclaredSkill
 from core import audit
 from core.context import get_current_tenant
 from core.idempotency import idempotent
+from core.params import uuid_param
 from core.permissions import HasCapability, capabilities_for
 
 
@@ -251,7 +252,7 @@ class PeopleListView(ListAPIView):
                 Q(person__display_name__icontains=search) | Q(person__email__icontains=search)
             )
 
-        skill_id = params.get("skill")
+        skill_id = uuid_param(self.request, "skill")
         if skill_id:
             # Phase 1: self-declared tier. Part B: switch to verified SkillAssertion.
             declared = SelfDeclaredSkill.objects.filter(skill_id=skill_id)
@@ -260,7 +261,7 @@ class PeopleListView(ListAPIView):
                 declared = declared.filter(level__gte=level)
             qs = qs.filter(id__in=declared.values("membership_id"))
 
-        org_unit_id = params.get("org_unit")
+        org_unit_id = uuid_param(self.request, "org_unit")
         if org_unit_id:
             target = OrgUnit.objects.filter(id=org_unit_id).first()
             if target is None:

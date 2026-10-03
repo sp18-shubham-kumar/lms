@@ -167,7 +167,7 @@ def recommend_for_gaps(membership: Any, job_profile: Any) -> list[dict[str, Any]
         p.resource_id: p
         for p in LearningProgress.objects.filter(
             membership=membership, resource_id__in={link.resource_id for link in links}
-        )
+        ).select_related("resource")
     }
 
     gaps = []

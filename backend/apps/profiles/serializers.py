@@ -6,12 +6,10 @@ Tracks, JobProfiles, ProfileRequirements, and ReadinessSnapshots.
 
 from __future__ import annotations
 
-from typing import Any
-
 from rest_framework import serializers
 
 from apps.profiles.models import JobProfile, ProfileRequirement, ReadinessSnapshot, Track
-from apps.skills.models import Skill
+from apps.skills.serializers import VisibleSkillField
 
 # Skill rubrics run 1..5 (SkillLevel); a requirement can't target a level outside them.
 MIN_LEVEL = 1
@@ -48,21 +46,10 @@ class JobProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "tenant", "status", "version", "created_at", "updated_at"]
 
 
-class _VisibleSkillField(serializers.PrimaryKeyRelatedField):
-    """
-    Skill choices limited to globals + the current tenant's own skills. The default
-    Skill manager is unscoped (seeding must read globals), so the plain field would
-    accept another tenant's skill.
-    """
-
-    def get_queryset(self) -> Any:
-        return Skill.objects.visible()
-
-
 class ProfileRequirementSerializer(serializers.ModelSerializer):
     """A required skill level within a job profile."""
 
-    skill: _VisibleSkillField = _VisibleSkillField()
+    skill: VisibleSkillField = VisibleSkillField()
     skill_name = serializers.CharField(source="skill.name", read_only=True)
     min_level = serializers.IntegerField(min_value=MIN_LEVEL, max_value=MAX_LEVEL)
 

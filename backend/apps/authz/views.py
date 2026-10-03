@@ -20,6 +20,7 @@ from apps.authz.serializers import (
 from core import audit
 from core.context import get_current_tenant
 from core.idempotency import IdempotentCreateMixin
+from core.params import uuid_param
 from core.permissions import HasCapability
 
 INVITE_CAPABILITY = "member.invite"
@@ -192,7 +193,7 @@ class RoleGrantViewSet(
     def get_queryset(self) -> Any:
         # RoleGrant.objects is tenant-scoped (fails closed with no tenant in context).
         qs = RoleGrant.objects.select_related("role").order_by("-created_at")
-        principal_id = self.request.query_params.get("principal_id")
+        principal_id = uuid_param(self.request, "principal_id")
         if principal_id:
             qs = qs.filter(principal_type="person", principal_id=principal_id)
         return qs

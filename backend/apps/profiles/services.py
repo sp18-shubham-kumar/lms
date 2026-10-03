@@ -5,7 +5,8 @@ The readiness engine reads ONLY the verified tier (SkillAssertion) to determine
 whether a member meets each requirement. Self-declared skills never gate readiness.
 
 Functions:
-- compute_readiness(membership, job_profile) -> ReadinessSnapshot
+- compute_readiness(membership, job_profile, *, requirements=None, levels=None)
+    -> ReadinessSnapshot
     For each core ProfileRequirement, check if a SkillAssertion exists with
     level >= min_level. Count met/total over core requirements only.
     Supporting/optional are computed but advisory (not in met/total).
@@ -45,19 +46,41 @@ def ensure_editable(job_profile: Any) -> None:
         )
 
 
-def _best_assertion_levels(membership: Any) -> dict[Any, int]:
-    """skill_id -> highest verified (SkillAssertion) level for this membership."""
+def best_verified_levels(membership: Any) -> dict[Any, int]:
+    """
+    Return ``{skill_id: highest verified level}`` for a membership.
+
+    The verified tier is the only readiness source, so other modules that reason
+    about a learner's gaps (e.g. learning recommendations) read levels here rather
+    than querying ``SkillAssertion`` directly.
+    """
     from apps.skills.models import SkillAssertion
 
     levels: dict[Any, int] = {}
-    for assertion in SkillAssertion.all_tenants.filter(membership=membership):
-        existing = levels.get(assertion.skill_id)
-        if existing is None or assertion.level > existing:
-            levels[assertion.skill_id] = assertion.level
+    for skill_id, level in SkillAssertion.all_tenants.filter(membership=membership).values_list(
+        "skill_id", "level"
+    ):
+        if skill_id not in levels or level > levels[skill_id]:
+            levels[skill_id] = level
     return levels
 
 
-def compute_readiness(membership: Any, job_profile: Any) -> Any:
+def profile_requirements(job_profile: Any) -> list[Any]:
+    """Every requirement of a job profile, with its skill loaded."""
+    from apps.profiles.models import ProfileRequirement
+
+    return list(
+        ProfileRequirement.all_tenants.filter(job_profile=job_profile).select_related("skill")
+    )
+
+
+def compute_readiness(
+    membership: Any,
+    job_profile: Any,
+    *,
+    requirements: list[Any] | None = None,
+    levels: dict[Any, int] | None = None,
+) -> Any:
     """
     Compute and persist a ReadinessSnapshot for a membership against a job_profile.
 
@@ -67,14 +90,16 @@ def compute_readiness(membership: Any, job_profile: Any) -> Any:
 
     This function is safe to call concurrently: it uses update_or_create to
     avoid duplicate rows.
-    """
-    from apps.profiles.models import ProfileRequirement, ReadinessSnapshot
 
-    # Load all requirements for this profile.
-    requirements = list(
-        ProfileRequirement.all_tenants.filter(job_profile=job_profile).select_related("skill")
-    )
-    assertions_by_skill = _best_assertion_levels(membership)
+    Callers that already hold the profile's ``requirements`` (see
+    :func:`profile_requirements`) or the member's verified ``levels`` (see
+    :func:`best_verified_levels`) can pass them in to skip re-reading them.
+    """
+    from apps.profiles.models import ReadinessSnapshot
+
+    if requirements is None:
+        requirements = profile_requirements(job_profile)
+    assertions_by_skill = best_verified_levels(membership) if levels is None else levels
 
     # Tally core requirements.
     met = 0
@@ -117,15 +142,12 @@ def gap_report(membership: Any, job_profile: Any) -> dict[str, Any]:
     optional) as met / close (some verified level, below target) / not_started.
     Unmet requirements come first, smallest gap first ("closest to done"); met last.
     """
-    from apps.profiles.models import ProfileRequirement
-
-    snapshot = compute_readiness(membership, job_profile)
-    levels = _best_assertion_levels(membership)
+    requirements = profile_requirements(job_profile)
+    levels = best_verified_levels(membership)
+    snapshot = compute_readiness(membership, job_profile, requirements=requirements, levels=levels)
 
     items = []
-    for req in ProfileRequirement.all_tenants.filter(job_profile=job_profile).select_related(
-        "skill"
-    ):
+    for req in requirements:
         current = levels.get(req.skill_id)
         is_met = current is not None and current >= req.min_level
         if is_met:
@@ -152,7 +174,7 @@ def gap_report(membership: Any, job_profile: Any) -> dict[str, Any]:
 
     return {
         "job_profile": str(job_profile.id),
-        "readiness_pct": int(snapshot.met * 100 / snapshot.total) if snapshot.total else 0,
+        "readiness_pct": snapshot.readiness_pct,
         "met": snapshot.met,
         "total": snapshot.total,
         "requirements": [item for _key, item in items],
@@ -282,24 +304,6 @@ def recompute_for_membership(membership: Any) -> None:
     if not all_profile_ids:
         return
 
+    levels = best_verified_levels(membership)
     for profile in JobProfile.all_tenants.filter(id__in=all_profile_ids):
-        compute_readiness(membership, profile)
-
-
-def best_verified_levels(membership: Any) -> dict[Any, int]:
-    """
-    Return ``{skill_id: highest verified level}`` for a membership.
-
-    The verified tier is the only readiness source, so other modules that reason
-    about a learner's gaps (e.g. learning recommendations) read levels here rather
-    than querying ``SkillAssertion`` directly.
-    """
-    from apps.skills.models import SkillAssertion
-
-    levels: dict[Any, int] = {}
-    for skill_id, level in SkillAssertion.all_tenants.filter(membership=membership).values_list(
-        "skill_id", "level"
-    ):
-        if level > levels.get(skill_id, 0):
-            levels[skill_id] = level
-    return levels
+        compute_readiness(membership, profile, levels=levels)

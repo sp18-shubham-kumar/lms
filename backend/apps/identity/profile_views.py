@@ -88,7 +88,7 @@ class PersonProfileView(APIView):
                         "job_profile_name": snap.job_profile.title,
                         "met": snap.met,
                         "total": snap.total,
-                        "readiness_pct": int(snap.met * 100 / snap.total) if snap.total else 0,
+                        "readiness_pct": snap.readiness_pct,
                         "computed_at": snap.computed_at,
                     }
                 )

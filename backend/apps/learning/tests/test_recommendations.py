@@ -89,9 +89,7 @@ def test_resources_at_or_below_the_current_level_and_unpublished_are_excluded(
     assert gap["resources"][0]["target_level"] == 2
 
 
-def test_resources_at_or_below_the_current_level_are_offered_as_refreshers(
-    learner, acme, skills
-):
+def test_resources_at_or_below_the_current_level_are_offered_as_refreshers(learner, acme, skills):
     profile = _profile(acme, [(skills["python"], 4, "core")])
     _verify(learner, skills["python"], 3)
     make_resource(acme, "Python Basics", [(skills["python"], 1)])

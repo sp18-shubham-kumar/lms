@@ -6,26 +6,19 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.learning.models import LearningProgress, LearningResource, ResourceSkill
-from apps.skills.models import Skill
+from apps.skills.serializers import VisibleSkillField
 
 
 class ResourceSkillSerializer(serializers.ModelSerializer):
     """A skill the resource teaches, and the level (1..5) it teaches toward."""
 
-    skill: serializers.PrimaryKeyRelatedField[Skill] = serializers.PrimaryKeyRelatedField(
-        queryset=Skill.objects.all()
-    )
+    # Only globals and the current tenant's own skills may be linked.
+    skill: VisibleSkillField = VisibleSkillField()
     skill_name = serializers.CharField(source="skill.name", read_only=True)
 
     class Meta:
         model = ResourceSkill
         fields = ["skill", "skill_name", "level"]
-
-    def validate_skill(self, value: Skill) -> Skill:
-        # Only globals and the current tenant's own skills may be linked.
-        if not Skill.objects.visible().filter(id=value.id).exists():
-            raise serializers.ValidationError("Unknown skill.")
-        return value
 
     def validate_level(self, value: int) -> int:
         if not (1 <= value <= 5):
@@ -63,6 +56,9 @@ class LearningResourceSerializer(serializers.ModelSerializer):
         return value
 
     def _replace_links(self, resource: LearningResource, links: list[dict[str, Any]]) -> None:
+        # An updated instance was loaded with ``prefetch_related("skill_links__skill")``;
+        # drop that cache so later reads (the audit record) see the new links.
+        getattr(resource, "_prefetched_objects_cache", {}).pop("skill_links", None)
         ResourceSkill.objects.filter(resource=resource).delete()
         ResourceSkill.objects.bulk_create(
             ResourceSkill(
