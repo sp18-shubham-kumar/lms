@@ -32,3 +32,24 @@ test('falls back for unknown shapes and non-HTTP errors', () => {
   expect(apiErrorMessage(new Error('boom'), 'fallback')).toBe('fallback')
   expect(apiErrorStatus(httpError(403))).toBe(403)
 })
+
+test('unwraps a nested detail object and lists inside the envelope', () => {
+  const nested = httpError(403, {
+    error: { code: 'permission_denied', detail: { detail: 'Nope.' } },
+  })
+  expect(apiErrorMessage(nested)).toBe('Nope.')
+  expect(apiErrorMessage(httpError(400, { error: { detail: ['Still granted.'] } }))).toBe(
+    'Still granted.',
+  )
+})
+
+test('labels field errors carried in the envelope', () => {
+  const err = httpError(400, {
+    error: { code: 'invalid', detail: { principal_id: ['Not a member.'], scope_id: ['Bad.'] } },
+  })
+  expect(apiErrorMessage(err)).toBe('principal_id: Not a member. scope_id: Bad.')
+})
+
+test('defaults the fallback when a screen does not pass one', () => {
+  expect(apiErrorMessage(new Error('x'))).toBe('Something went wrong.')
+})

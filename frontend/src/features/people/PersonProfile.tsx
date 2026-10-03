@@ -5,7 +5,7 @@
  */
 import { Link } from 'react-router-dom'
 
-import { apiErrorMessage } from '../../lib/apiError'
+import { apiErrorMessage } from '../../lib/errors'
 import { LevelMeter } from '../roadmap/components/LevelMeter'
 import type { LevelValue } from '../roadmap/types'
 import { LEVEL_LABELS } from '../skills/types'

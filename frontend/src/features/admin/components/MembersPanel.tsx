@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { useAuth } from '../../../lib/auth'
-import { apiErrorMessage } from '../../../lib/apiError'
+import { apiErrorMessage } from '../../../lib/errors'
 import { useDebounced } from '../../../lib/useDebounced'
 import { usePeople } from '../../people/usePeople'
 import { usePersonProfile } from '../../people/usePersonProfile'

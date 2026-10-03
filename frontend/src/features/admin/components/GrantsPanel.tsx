@@ -7,7 +7,7 @@
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '../../../lib/auth'
-import { apiErrorMessage } from '../../../lib/apiError'
+import { apiErrorMessage } from '../../../lib/errors'
 import { usePeople } from '../../people/usePeople'
 import { useOrgUnits } from '../../team/api'
 import { useCreateGrant, useGrants, useRevokeGrant, useRoles } from '../api'

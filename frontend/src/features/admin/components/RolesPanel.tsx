@@ -1,7 +1,7 @@
 /** Roles tab: each role's capability bundle, with create / edit / delete. */
 import { useState } from 'react'
 
-import { apiErrorMessage } from '../../../lib/apiError'
+import { apiErrorMessage } from '../../../lib/errors'
 import { useCapabilities, useDeleteRole, useRoles, useSaveRole } from '../api'
 import type { Role } from '../types'
 import { ConfirmButton } from './ConfirmButton'

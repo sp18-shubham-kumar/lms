@@ -1,35 +1,40 @@
 /**
  * Turn an API failure into one line a person can act on.
  *
- * The backend answers in three shapes: the `{"error": {"code", "detail"}}`
- * envelope from raised exceptions, a bare `{"detail"}` from service errors, and
- * DRF field validation `{"field": ["message", ...]}`. No response at all means the
- * request never reached the server (backend down, wrong VITE_API_URL, or CORS).
+ * Raised DRF errors arrive as `{"error": {"code", "detail"}}`, where `detail` is a
+ * string, a `{detail}` object, a list, or a field → messages map. Service errors
+ * return a bare `{"detail"}`, and unwrapped validation returns
+ * `{"field": ["message", ...]}`. All three are flattened so screens show the
+ * backend's reason (e.g. "This prerequisite edge would create a cycle.") instead
+ * of a generic failure. No response at all means the request never reached the
+ * server: backend down, wrong VITE_API_URL, or CORS.
  */
 import { isAxiosError } from 'axios'
 
 import { API_URL } from './api'
 
-type Body = Record<string, unknown>
-
-function fieldMessages(body: Body): string | null {
-  const parts = Object.entries(body).flatMap(([field, value]) => {
-    const messages = Array.isArray(value) ? value.filter((v) => typeof v === 'string') : []
-    if (messages.length === 0) return []
-    return field === 'non_field_errors' ? messages : [`${field}: ${messages.join(' ')}`]
-  })
-  return parts.length > 0 ? parts.join(' ') : null
+function flatten(value: unknown): string[] {
+  if (value == null) return []
+  if (typeof value === 'string') return [value]
+  if (Array.isArray(value)) return value.flatMap(flatten)
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>).flatMap(([key, inner]) => {
+      const messages = flatten(inner)
+      const labelled = key !== 'detail' && key !== 'non_field_errors'
+      return labelled ? messages.map((m) => `${key}: ${m}`) : messages
+    })
+  }
+  return [String(value)]
 }
 
-export function apiErrorMessage(error: unknown, fallback: string): string {
+export function apiErrorMessage(error: unknown, fallback = 'Something went wrong.'): string {
   if (!isAxiosError(error)) return fallback
   if (!error.response) return `Can't reach the server at ${API_URL}. Is the backend running?`
-  const body = error.response.data as Body | undefined
+  const body = error.response.data as Record<string, unknown> | undefined
   if (!body || typeof body !== 'object') return fallback
-  const envelope = body.error as Body | undefined
-  if (envelope && typeof envelope.detail === 'string') return envelope.detail
-  if (typeof body.detail === 'string') return body.detail
-  return fieldMessages(body) ?? fallback
+  const envelope = body.error as { detail?: unknown } | undefined
+  const messages = flatten(envelope?.detail ?? body.detail ?? body)
+  return messages.length > 0 ? messages.join(' ') : fallback
 }
 
 /** HTTP status of a failed API call, if the server answered. */

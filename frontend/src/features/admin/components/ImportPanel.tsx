@@ -6,7 +6,7 @@
  */
 import { useState } from 'react'
 
-import { apiErrorMessage } from '../../../lib/apiError'
+import { apiErrorMessage } from '../../../lib/errors'
 import { useImportMembers } from '../api'
 import type { ImportDiff } from '../types'
 

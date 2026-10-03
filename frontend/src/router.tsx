@@ -14,12 +14,15 @@ import { AdminPage } from './pages/AdminPage'
 import { ChooseTenantPage } from './pages/ChooseTenantPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DirectoryPage } from './pages/DirectoryPage'
+import { FrameworkPage } from './pages/FrameworkPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PlatformPage } from './pages/PlatformPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { SkillEditorPage } from './pages/SkillEditorPage'
 import { SkillsPage } from './pages/SkillsPage'
 import { TeamPage } from './pages/TeamPage'
+import { VerifyPage } from './pages/VerifyPage'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -37,6 +40,9 @@ export const router = createBrowserRouter([
           { path: '/people/:personId', element: <ProfilePage /> },
           { path: '/skills', element: <SkillsPage /> },
           { path: '/team', element: <TeamPage /> },
+          { path: '/framework', element: <FrameworkPage /> },
+          { path: '/framework/skills/:id', element: <SkillEditorPage /> },
+          { path: '/verify', element: <VerifyPage /> },
           { path: '/admin', element: <AdminPage /> },
         ],
       },

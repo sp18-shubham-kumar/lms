@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { apiErrorMessage } from '../lib/apiError'
+import { apiErrorMessage } from '../lib/errors'
 import { useDebounced } from '../lib/useDebounced'
 import { DirectoryFilters } from '../features/people/components/DirectoryFilters'
 import type { PeopleFilters } from '../features/people/types'
