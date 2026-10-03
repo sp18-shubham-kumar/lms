@@ -347,3 +347,28 @@ def test_readiness_against_v1_unchanged_by_v2_draft(editor):
     assert versions[v1_id] == 1
     assert str(v2_id) in {str(k) for k in versions}
     assert sorted(versions.values()) == [1, 2]
+
+
+# ─── Tracks ──────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_track_with_profiles_cannot_be_deleted(editor):
+    from apps.profiles.models import Track
+    from core.context import tenant_context
+
+    with tenant_context(editor["tenant"].id):
+        track = Track.objects.first()
+    resp = editor["client"].delete(f"/api/profiles/tracks/{track.id}/")
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "track_in_use"
+    with tenant_context(editor["tenant"].id):
+        assert Track.objects.filter(id=track.id).exists()
+
+
+@pytest.mark.django_db
+def test_empty_track_can_be_deleted(editor):
+    created = editor["client"].post("/api/profiles/tracks/", {"name": "Design"}, format="json")
+    assert created.status_code == 201
+    resp = editor["client"].delete(f"/api/profiles/tracks/{created.json()['id']}/")
+    assert resp.status_code == 204

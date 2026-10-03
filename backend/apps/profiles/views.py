@@ -69,6 +69,14 @@ class ProfileConflict(APIException):
     default_detail = "This job profile can't be changed in its current state."
 
 
+class TrackInUse(APIException):
+    """409: a track still holds job profiles (any status), so it can't be deleted."""
+
+    status_code = status.HTTP_409_CONFLICT
+    default_code = "track_in_use"
+    default_detail = "This track still has job profiles. Retire or move them first."
+
+
 def _ensure_editable(profile: JobProfile) -> None:
     try:
         services.ensure_editable(profile)
@@ -112,7 +120,10 @@ def _profile_permissions(view: Any) -> list[Any]:
     ),
     destroy=extend_schema(
         summary="Delete a track",
-        description="Delete a track. Requires jobprofile.edit.",
+        description=(
+            "Delete a track. 409 (track_in_use) while it still has job profiles, "
+            "retired ones included. Requires jobprofile.edit."
+        ),
         tags=["Profiles"],
     ),
 )
@@ -156,6 +167,9 @@ class TrackViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance: Track) -> None:
+        # JobProfile.track is PROTECT; check up front so the caller gets a 409, not a 500.
+        if instance.job_profiles.exists():
+            raise TrackInUse()
         audit.record(
             actor=self.request.user,
             action="track.delete",
