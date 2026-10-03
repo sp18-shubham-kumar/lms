@@ -47,7 +47,10 @@ export function SkillCard({
 
       {declared && (
         <div className="mt-2.5">
-          <LevelMeter currentLevel={Math.min(4, declaration!.level) as LevelValue} label={skill.name} />
+          <LevelMeter
+            currentLevel={Math.min(4, declaration!.level) as LevelValue}
+            label={skill.name}
+          />
         </div>
       )}
 
