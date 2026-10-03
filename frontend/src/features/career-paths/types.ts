@@ -45,13 +45,6 @@ export interface ProfileRequirement {
   updated_at: string
 }
 
-/** One rung of a skill's rubric (GET /api/skills/{id}/levels/). */
-export interface SkillLevel {
-  id: string
-  level: number
-  title: string
-}
-
 /** A manager's view of one member (GET /api/profiles/members/{id}/readiness/). */
 export interface MemberReadiness extends Readiness {
   membership_id: string

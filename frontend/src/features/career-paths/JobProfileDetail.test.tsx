@@ -161,3 +161,30 @@ test('without jobprofile.edit the editor explains what is missing', () => {
   render(renderAt('/career-paths/v1', routes))
   expect(screen.getByText(/jobprofile.edit/)).toBeInTheDocument()
 })
+
+test('an armed confirm does not follow you to another version', async () => {
+  profiles = [v1, v2]
+  mockSession(['jobprofile.edit', 'directory.view'])
+  render(renderAt('/career-paths/v2', routes))
+
+  // The version history links to the version you're not on. Visit v1 and come back
+  // so both are cached and switching no longer passes through a loading state.
+  const switchVersion = async (leaving: string) => {
+    fireEvent.click(await screen.findByRole('link', { name: 'Open' }))
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('button', { name: leaving })).not.toBeInTheDocument(),
+    )
+  }
+  await screen.findByRole('button', { name: 'Publish v2' })
+  await switchVersion('Publish v2')
+  await switchVersion('Edit as new version')
+  await screen.findByRole('button', { name: 'Publish v2' })
+
+  fireEvent.click(screen.getByRole('button', { name: 'Publish v2' }))
+  expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  await switchVersion('Publish v2')
+  fireEvent.click(await screen.findByRole('link', { name: 'Open' }))
+
+  expect(await screen.findByRole('button', { name: 'Publish v2' })).toBeInTheDocument()
+  expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+})

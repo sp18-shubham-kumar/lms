@@ -22,7 +22,7 @@ export function ResourceManager() {
   const [status, setStatus] = useState('')
   const [editing, setEditing] = useState<Editing>(null)
   const resources = useResources({ status }, canEdit)
-  const skills = useSkills()
+  const skills = useSkills(canEdit)
   const create = useCreateResource()
   const update = useUpdateResource()
   const archive = useArchiveResource()

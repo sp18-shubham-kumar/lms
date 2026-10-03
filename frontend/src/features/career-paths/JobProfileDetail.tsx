@@ -36,9 +36,6 @@ import { EDIT_CAPABILITY, type JobProfile } from './types'
 export function JobProfileDetail() {
   const { id } = useParams<{ id: string }>()
   const { hasCapability } = useAuth()
-  const profile = useJobProfile(id)
-  const all = useAllJobProfiles()
-  const tracks = useTracks()
 
   if (!hasCapability(EDIT_CAPABILITY)) {
     return (
@@ -50,6 +47,15 @@ export function JobProfileDetail() {
       </section>
     )
   }
+  // Keyed on the id so opening another version starts with fresh form and confirm state.
+  return <JobProfileEditor key={id} id={id} />
+}
+
+function JobProfileEditor({ id }: { id?: string }) {
+  const profile = useJobProfile(id)
+  const all = useAllJobProfiles()
+  const tracks = useTracks()
+
   if (profile.isLoading) return <p className="text-ink-soft">Loading job profile…</p>
   if (profile.isError || !profile.data) {
     return <p className="text-ink-soft">Could not load this job profile.</p>

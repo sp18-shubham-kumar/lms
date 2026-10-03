@@ -8,15 +8,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../../lib/api'
-import { useTenant } from '../../lib/tenant'
+import { useTenantId } from '../../lib/useTenantId'
 import type { Paginated } from '../people/types'
-import type { Criticality, JobProfile, ProfileRequirement, SkillLevel, Track } from './types'
+import type { Criticality, JobProfile, ProfileRequirement, Track } from './types'
 
 const PAGE = { page_size: 200 }
-
-function useTenantId() {
-  return useTenant().tenant?.id
-}
 
 // --- Tracks ------------------------------------------------------------------
 
@@ -182,8 +178,12 @@ function useInvalidateRequirements(profileId: string) {
   return () =>
     Promise.all([
       qc.invalidateQueries({ queryKey: ['profile-requirements', tenantId, profileId] }),
-      // Readiness against this profile changes with its requirements.
+      // Everything scored against this profile changes with its requirements.
       qc.invalidateQueries({ queryKey: ['readiness', tenantId, profileId] }),
+      qc.invalidateQueries({ queryKey: ['learning-recommendations', tenantId, profileId] }),
+      qc.invalidateQueries({ queryKey: ['member-readiness', tenantId] }),
+      qc.invalidateQueries({ queryKey: ['team-readiness', tenantId] }),
+      qc.invalidateQueries({ queryKey: ['heatmap', tenantId] }),
     ])
 }
 
@@ -214,16 +214,5 @@ export function useRemoveRequirement(profileId: string) {
       await api.delete(`/profiles/job-profiles/${profileId}/requirements/${requirementId}/`)
     },
     onSuccess: invalidate,
-  })
-}
-
-/** A skill's rubric, so the level picker can name each level. */
-export function useSkillLevels(skillId: string | null) {
-  const tenantId = useTenantId()
-  return useQuery({
-    queryKey: ['skill-levels', tenantId, skillId],
-    enabled: Boolean(tenantId && skillId),
-    queryFn: async () =>
-      (await api.get<{ levels: SkillLevel[] }>(`/skills/${skillId}/levels/`)).data.levels,
   })
 }

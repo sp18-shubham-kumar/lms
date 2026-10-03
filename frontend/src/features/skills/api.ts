@@ -26,11 +26,11 @@ export function useSkillDomains() {
   })
 }
 
-export function useSkills() {
+export function useSkills(enabled = true) {
   const { tenant } = useTenant()
   return useQuery({
     queryKey: ['skills', tenant?.id],
-    enabled: Boolean(tenant?.id),
+    enabled: enabled && Boolean(tenant?.id),
     queryFn: async () => {
       const resp = await api.get<Paginated<ApiSkill>>('/skills/', {
         params: { page_size: 200 },

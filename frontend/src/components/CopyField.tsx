@@ -5,8 +5,12 @@ export function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false)
 
   const copy = async () => {
-    await navigator.clipboard.writeText(value)
-    setCopied(true)
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+    } catch {
+      // Clipboard denied or not a secure context; the field is still selectable.
+    }
   }
 
   return (

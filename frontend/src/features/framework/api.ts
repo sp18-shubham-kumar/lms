@@ -7,7 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../../lib/api'
-import { useTenant } from '../../lib/tenant'
+import { useTenantId } from '../../lib/useTenantId'
 import type { Paginated } from '../people/types'
 import type { ApiSkill, SkillDomain } from '../skills/types'
 import type { EdgeKind, SkillEdge, SkillInput, SkillLevel, SkillOverride } from './types'
@@ -20,10 +20,6 @@ const keys = {
   edges: (tenantId: string | undefined, id: string) => ['skill-edges', tenantId, id] as const,
   versions: (tenantId: string | undefined, id: string) => ['skill-versions', tenantId, id] as const,
   overrides: (tenantId?: string) => ['skill-overrides', tenantId] as const,
-}
-
-function useTenantId() {
-  return useTenant().tenant?.id
 }
 
 export function useSkill(id: string) {

@@ -20,15 +20,21 @@ export function ImportPanel() {
   const [preview, setPreview] = useState<ImportDiff | null>(null)
   const [committed, setCommitted] = useState(false)
 
-  const runPreview = async () => {
+  // mutate (not mutateAsync): a failure is shown via importer.isError, not thrown.
+  const runPreview = () => {
     setCommitted(false)
-    const diff = await importer.mutateAsync({ csv, commit: false })
-    setPreview(diff)
+    importer.mutate({ csv, commit: false }, { onSuccess: setPreview })
   }
-  const runApply = async () => {
-    const diff = await importer.mutateAsync({ csv, commit: true })
-    setPreview(diff)
-    setCommitted(true)
+  const runApply = () => {
+    importer.mutate(
+      { csv, commit: true },
+      {
+        onSuccess: (diff) => {
+          setPreview(diff)
+          setCommitted(true)
+        },
+      },
+    )
   }
 
   return (
@@ -46,14 +52,14 @@ export function ImportPanel() {
       />
       <div className="mt-2 flex items-center gap-2">
         <button
-          onClick={() => void runPreview()}
+          onClick={runPreview}
           disabled={importer.isPending}
           className="rounded-lg border border-brand-200 px-3 py-1.5 text-[13px] font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50"
         >
           Preview
         </button>
         <button
-          onClick={() => void runApply()}
+          onClick={runApply}
           disabled={importer.isPending || !preview}
           className="rounded-lg px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
           style={{ backgroundColor: 'var(--tenant-accent)' }}

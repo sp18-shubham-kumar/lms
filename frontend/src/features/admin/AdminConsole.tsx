@@ -30,7 +30,7 @@ export interface AdminTab {
   render: (ctx: AdminTabContext) => ReactNode
 }
 
-export const ADMIN_TABS: AdminTab[] = [
+const ADMIN_TABS: AdminTab[] = [
   {
     id: 'members',
     label: 'Members',

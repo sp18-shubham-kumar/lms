@@ -1,5 +1,5 @@
 import { LEVEL_LABELS } from '../skills/types'
-import type { SkillLevel } from './types'
+import type { SkillLevel } from '../framework/types'
 
 /**
  * "2 · Working": the rubric's own title for the level when the skill has one,

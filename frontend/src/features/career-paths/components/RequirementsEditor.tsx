@@ -8,7 +8,8 @@ import { useState, type FormEvent } from 'react'
 
 import { apiErrorMessage } from '../../../lib/errors'
 import { useSkills } from '../../skills/api'
-import { useAddRequirement, useRemoveRequirement, useRequirements, useSkillLevels } from '../api'
+import { useSkillLevels } from '../../framework/api'
+import { useAddRequirement, useRemoveRequirement, useRequirements } from '../api'
 import { levelLabel } from '../levels'
 import { CRITICALITIES, CRITICALITY_HELP, REQUIREMENT_LEVELS, type Criticality } from '../types'
 import { CARD, INPUT, LABEL, PRIMARY_BUTTON, PRIMARY_STYLE, SECONDARY_BUTTON } from './styles'
@@ -110,7 +111,7 @@ function AddRequirementRow({
   const [skill, setSkill] = useState('')
   const [level, setLevel] = useState(2)
   const [criticality, setCriticality] = useState<Criticality>('core')
-  const rubric = useSkillLevels(skill || null)
+  const rubric = useSkillLevels(skill)
   const add = useAddRequirement(profileId)
 
   const available = options.filter((s) => !taken.has(s.id))

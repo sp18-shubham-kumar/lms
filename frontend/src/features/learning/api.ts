@@ -68,9 +68,8 @@ export function useRecommendations(target: string | null) {
 function useInvalidate(...keys: string[]) {
   const { tenant } = useTenant()
   const qc = useQueryClient()
-  return () => {
-    for (const key of keys) qc.invalidateQueries({ queryKey: [key, tenant?.id] })
-  }
+  // Returned so a mutation stays pending until the refetch lands.
+  return () => Promise.all(keys.map((key) => qc.invalidateQueries({ queryKey: [key, tenant?.id] })))
 }
 
 export function useStartResource() {
