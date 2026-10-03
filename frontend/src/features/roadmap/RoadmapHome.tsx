@@ -100,8 +100,8 @@ export function RoadmapHome() {
 
       {!canPickTarget && (
         <div className="mt-5 rounded-xl border border-brand-100 bg-white p-5 text-sm text-ink-soft">
-          Your target grade hasn’t been shared with your account yet. Once a manager sets it,
-          your readiness route appears here. In the meantime, declare your skills on the{' '}
+          Your target grade hasn’t been shared with your account yet. Once a manager sets it, your
+          readiness route appears here. In the meantime, declare your skills on the{' '}
           <span className="font-semibold text-ink">Skills</span> page.
         </div>
       )}

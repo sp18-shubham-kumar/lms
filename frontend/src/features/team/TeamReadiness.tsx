@@ -23,8 +23,8 @@ export function TeamReadiness() {
 
       {rows.length === 0 ? (
         <p className="mt-5 rounded-xl border border-brand-100 bg-white p-5 text-sm text-ink-soft">
-          No readiness snapshots in this tenant yet. They appear once members have a target
-          grade and verified skills.
+          No readiness snapshots in this tenant yet. They appear once members have a target grade
+          and verified skills.
         </p>
       ) : (
         <ul className="mt-5 space-y-2.5">
