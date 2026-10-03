@@ -6,6 +6,7 @@ Planned tables (see docs/specs/data-model.md and docs/specs/phase-1.md):
 - Person        — global identity, not owned by a tenant (email UNIQUE).
 - OrgUnit       — tenant org hierarchy (materialised path for subtree scope).
 - Membership    — links a Person to a Tenant (role, org unit, grade); one per pair.
+- Invitation   — a pending email invite; only the token hash is stored.
 - IdentityProvider — per-tenant OIDC config.
 
 Conventions:
@@ -74,6 +75,7 @@ class Tenant(UUIDModel, TimeStampedModel):
     plan = models.CharField(max_length=32, default="free")
     accent_color = models.CharField(max_length=9, blank=True, default="")
     logo_url = models.URLField(blank=True, default="")
+    description = models.TextField(blank=True, default="")
 
     def __str__(self) -> str:
         return self.name
@@ -107,6 +109,54 @@ class Membership(TenantScopedModel):
             models.UniqueConstraint(
                 fields=["person", "tenant"], name="uniq_membership_person_tenant"
             )
+        ]
+
+
+class Invitation(TenantScopedModel):
+    """A pending email invite. The raw token is mailed once; only its hash is stored."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        CANCELLED = "cancelled", "Cancelled"
+
+    email = models.EmailField()
+    role = models.ForeignKey(
+        "authz.Role",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="invitations",
+    )
+    token_hash = models.CharField(max_length=64, unique=True)
+    # Present on the existing table. Accept uses token_hash; this stays empty until used.
+    onboarding_token_hash = models.CharField(max_length=64, blank=True, default="")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    expires_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="sent_invitations",
+    )
+
+    def __str__(self) -> str:
+        return f"{self.email} ({self.status})"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "email"],
+                condition=models.Q(status="pending"),
+                name="uniq_pending_invitation_tenant_email",
+            ),
+            models.UniqueConstraint(
+                fields=["onboarding_token_hash"],
+                condition=~models.Q(onboarding_token_hash=""),
+                name="uniq_invitation_onboarding_token_hash",
+            ),
         ]
 
 

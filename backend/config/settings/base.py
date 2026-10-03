@@ -21,6 +21,10 @@ env = environ.Env(
     CORS_ALLOWED_ORIGINS=(list, ["http://localhost:5173"]),
     JWT_ACCESS_MINUTES=(int, 30),
     JWT_REFRESH_DAYS=(int, 7),
+    EMAIL_BACKEND=(str, "django.core.mail.backends.console.EmailBackend"),
+    DEFAULT_FROM_EMAIL=(str, "noreply@localhost"),
+    FRONTEND_ORIGIN=(str, "http://localhost:5173"),
+    INVITATION_DAYS=(int, 7),
 )
 
 # Read backend/.env if present (never committed).
@@ -159,7 +163,14 @@ SPECTACULAR_SETTINGS = {
 CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 # The SPA sends the active tenant in a custom header (see TENANT_HEADER); it must be
 # allowed through the CORS preflight or browsers block every tenant-scoped request.
-CORS_ALLOW_HEADERS = (*default_headers, "x-tenant-id")
+CORS_ALLOW_HEADERS = (*default_headers, "x-tenant-id", "idempotency-key")
+
+# --- Mail -------------------------------------------------------------------
+# Dev prints invitation links in the server log. Point EMAIL_BACKEND at SMTP to send them.
+EMAIL_BACKEND = env("EMAIL_BACKEND")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
+FRONTEND_ORIGIN = env("FRONTEND_ORIGIN")
+INVITATION_DAYS = env("INVITATION_DAYS")
 
 # --- Tenant resolution ------------------------------------------------------
 # Header the frontend sends to select the active tenant until subdomain-based

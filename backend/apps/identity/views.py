@@ -15,8 +15,10 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.identity import import_service
+from apps.identity.invitation_service import InvitationError, accept_invitation
 from apps.identity.models import Membership, OrgUnit, Tenant
 from apps.identity.serializers import (
+    InvitationAcceptSerializer,
     LoginSerializer,
     MembershipSummarySerializer,
     OrgUnitSerializer,
@@ -64,7 +66,8 @@ class LoginView(APIView):
         memberships = list(
             Membership.all_tenants.filter(person=person, status="active").select_related("tenant")
         )
-        if not memberships:
+        # A platform operator provisions tenants and may have no membership yet.
+        if not memberships and not (person.is_staff and person.is_superuser):
             raise PermissionDenied("You have no active membership in any organization.")
         refresh = RefreshToken.for_user(person)
         audit.record(actor=person, action="auth.login")
@@ -75,6 +78,34 @@ class LoginView(APIView):
                 "memberships": MembershipSummarySerializer(memberships, many=True).data,
             }
         )
+
+
+@extend_schema(
+    summary="Accept an invitation",
+    description=(
+        "Public. Consumes a one-time invitation token, sets the person's password, "
+        "and opens their membership and role grant. No JWT and no X-Tenant-Id."
+    ),
+    tags=["Identity"],
+    request=InvitationAcceptSerializer,
+)
+class InvitationAcceptView(APIView):
+    """The join path for a pending invitation, including the first tenant admin."""
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    def post(self, request: Any) -> Response:
+        serializer = InvitationAcceptSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            payload = accept_invitation(
+                raw_token=serializer.validated_data["token"],
+                password=serializer.validated_data["password"],
+            )
+        except InvitationError as exc:
+            return Response({"detail": exc.detail}, status=exc.status_code)
+        return Response(payload)
 
 
 class SessionView(APIView):
@@ -217,8 +248,9 @@ def _read_csv_body(request: Any) -> str:
     description=(
         "Upload a CSV (columns ``email,display_name,org_unit_path,role,employee_ref``). "
         "Returns a dry-run diff ``{adds, updates, errors}`` without writing. "
-        "Pass ``?commit=true`` to apply the diff (create persons/memberships, attach "
-        "roles) — audited, and idempotent via the ``Idempotency-Key`` header."
+        "Pass ``?commit=true`` to invite each new email (same accept link as a "
+        "member invite) and update existing members' org unit and employee ref. "
+        "Audited, and idempotent via the ``Idempotency-Key`` header."
     ),
     tags=["Identity"],
     parameters=[
