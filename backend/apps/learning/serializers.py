@@ -168,6 +168,7 @@ class RecommendationGapSerializer(serializers.Serializer):
     min_level = serializers.IntegerField()
     current_level = serializers.IntegerField(allow_null=True)
     resources = RecommendedResourceSerializer(many=True)
+    refreshers = RecommendedResourceSerializer(many=True)
 
 
 class RecommendationsSerializer(serializers.Serializer):

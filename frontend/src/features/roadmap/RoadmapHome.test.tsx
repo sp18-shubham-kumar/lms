@@ -71,6 +71,7 @@ const recommendations = {
           progress: null,
         },
       ],
+      refreshers: [],
     },
   ],
 }
@@ -116,4 +117,46 @@ test('the current gap step lists its recommended resources', async () => {
   expect(await screen.findByText('Intermediate Python for Data')).toBeInTheDocument()
   expect(screen.getByText('Course · 6 modules')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument()
+})
+
+test('a gap with only below-level resources offers them as refreshers', async () => {
+  mockAuth(true)
+  const [gap] = recommendations.gaps
+  vi.spyOn(api, 'get').mockImplementation((async (url: string) => {
+    if (url.includes('job-profiles'))
+      return {
+        data: {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{ id: 'p2', title: 'Data Engineer L2' }],
+        },
+      }
+    if (url.includes('recommendations'))
+      return {
+        data: {
+          ...recommendations,
+          gaps: [
+            {
+              ...gap,
+              resources: [],
+              refreshers: [
+                {
+                  ...gap.resources[0],
+                  resource: { ...gap.resources[0].resource, title: 'Python Basics' },
+                  target_level: 1,
+                },
+              ],
+            },
+          ],
+        },
+      }
+    return { data: readiness }
+  }) as never)
+  render(wrap(<RoadmapHome />))
+  await screen.findByRole('option', { name: 'Data Engineer L2' })
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p2' } })
+  expect(await screen.findByText('Python Basics')).toBeInTheDocument()
+  expect(screen.getByText(/No resource teaches Python beyond your level 1 yet/)).toBeInTheDocument()
+  expect(screen.queryByText(/No learning resources for Python/)).not.toBeInTheDocument()
 })

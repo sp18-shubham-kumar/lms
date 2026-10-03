@@ -70,7 +70,10 @@ export interface RecommendationGap {
   criticality: string
   min_level: number
   current_level: number | null
+  /** Resources that teach beyond the learner's current level, best first. */
   resources: RecommendedResource[]
+  /** Resources for the skill that stop at or below the current level. */
+  refreshers: RecommendedResource[]
 }
 
 export interface Recommendations {

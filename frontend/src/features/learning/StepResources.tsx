@@ -20,7 +20,10 @@ export function StepResources({ target, skillId, skillName, limit = 2 }: StepRes
 
   if (!recommendations.data) return null
   const gap = recommendations.data.gaps.find((g) => g.skill_id === skillId)
-  const items = gap?.resources.slice(0, limit) ?? []
+  const forward = gap?.resources ?? []
+  // With nothing that moves the learner forward, show what the library does have
+  // for the skill instead of claiming it has nothing.
+  const items = (forward.length ? forward : (gap?.refreshers ?? [])).slice(0, limit)
 
   if (!items.length) {
     return (
@@ -30,6 +33,12 @@ export function StepResources({ target, skillId, skillName, limit = 2 }: StepRes
 
   return (
     <div className="mt-3 space-y-2">
+      {!forward.length && (
+        <p className="text-[11.5px] text-ink-soft">
+          No resource teaches {skillName} beyond your level {gap?.current_level} yet. A refresher at
+          your level:
+        </p>
+      )}
       {items.map((item) => (
         <ResourceCard
           key={item.resource.id}

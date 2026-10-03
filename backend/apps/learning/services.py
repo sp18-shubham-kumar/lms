@@ -121,6 +121,14 @@ def _rank(
     return (done, link.level > req.min_level, link.level)
 
 
+def _recommended(link: Any, progress_by_resource: dict[Any, Any]) -> dict[str, Any]:
+    return {
+        "resource": link.resource,
+        "target_level": link.level,
+        "progress": progress_by_resource.get(link.resource_id),
+    }
+
+
 def recommend_for_gaps(membership: Any, job_profile: Any) -> list[dict[str, Any]]:
     """
     For every requirement the learner hasn't met, list the published resources that
@@ -130,6 +138,11 @@ def recommend_for_gaps(membership: Any, job_profile: Any) -> list[dict[str, Any]
     Within a gap, resources inside the gap come first (lowest target level = the
     next step), then resources that overshoot the requirement; completed resources
     go last.
+
+    Resources that teach the skill only up to the learner's current level don't
+    close the gap, so they are kept apart as ``refreshers`` (highest level first)
+    rather than dropped: the learner can still see that the library covers the
+    skill, just not far enough.
     """
     from apps.profiles.models import ProfileRequirement
     from apps.profiles.services import best_verified_levels
@@ -160,11 +173,12 @@ def recommend_for_gaps(membership: Any, job_profile: Any) -> list[dict[str, Any]
     gaps = []
     for req in unmet:
         level_now = current.get(req.skill_id, 0)
-        candidates = [
-            link for link in links if link.skill_id == req.skill_id and link.level > level_now
-        ]
+        skill_links = [link for link in links if link.skill_id == req.skill_id]
+        candidates = [link for link in skill_links if link.level > level_now]
+        refreshers = [link for link in skill_links if link.level <= level_now]
 
         candidates.sort(key=partial(_rank, req=req, progress_by_resource=progress_by_resource))
+        refreshers.sort(key=lambda link: (-link.level, link.resource.title))
         gaps.append(
             {
                 "skill_id": req.skill_id,
@@ -172,14 +186,8 @@ def recommend_for_gaps(membership: Any, job_profile: Any) -> list[dict[str, Any]
                 "criticality": req.criticality,
                 "min_level": req.min_level,
                 "current_level": current.get(req.skill_id),
-                "resources": [
-                    {
-                        "resource": link.resource,
-                        "target_level": link.level,
-                        "progress": progress_by_resource.get(link.resource_id),
-                    }
-                    for link in candidates
-                ],
+                "resources": [_recommended(link, progress_by_resource) for link in candidates],
+                "refreshers": [_recommended(link, progress_by_resource) for link in refreshers],
             }
         )
     return gaps

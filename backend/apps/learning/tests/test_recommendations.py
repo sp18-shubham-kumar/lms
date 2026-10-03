@@ -89,6 +89,24 @@ def test_resources_at_or_below_the_current_level_and_unpublished_are_excluded(
     assert gap["resources"][0]["target_level"] == 2
 
 
+def test_resources_at_or_below_the_current_level_are_offered_as_refreshers(
+    learner, acme, skills
+):
+    profile = _profile(acme, [(skills["python"], 4, "core")])
+    _verify(learner, skills["python"], 3)
+    make_resource(acme, "Python Basics", [(skills["python"], 1)])
+    make_resource(acme, "Python at Level 3", [(skills["python"], 3)])
+    make_resource(acme, "Draft Python", [(skills["python"], 2)], status="draft")
+
+    gap = learner.client().get(URL, {"target": str(profile.id)}).json()["gaps"][0]
+
+    assert gap["resources"] == []
+    assert [(r["resource"]["title"], r["target_level"]) for r in gap["refreshers"]] == [
+        ("Python at Level 3", 3),
+        ("Python Basics", 1),
+    ]
+
+
 def test_in_gap_resources_rank_before_overshoot_and_completed_go_last(learner, acme, skills):
     from apps.learning.services import start_progress, update_progress
 
