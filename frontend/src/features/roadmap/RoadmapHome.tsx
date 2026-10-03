@@ -9,6 +9,7 @@
 import { useState } from 'react'
 
 import { useAuth } from '../../lib/auth'
+import { StepResources } from '../learning/StepResources'
 import { useJobProfiles, useReadiness } from './api'
 import { RoadmapSpine } from './components/RoadmapSpine'
 import { ReadinessRing } from './components/ReadinessRing'
@@ -110,7 +111,19 @@ export function RoadmapHome() {
       {readiness.isError && (
         <p className="mt-5 text-ink-soft">Could not load readiness for this target.</p>
       )}
-      {readiness.data && <RoadmapSpine steps={toSteps(readiness.data)} />}
+      {readiness.data && target && (
+        <RoadmapSpine
+          steps={toSteps(readiness.data)}
+          renderStepExtra={(step) => (
+            <StepResources
+              target={target}
+              skillId={step.id}
+              skillName={step.skill}
+              limit={step.status === 'current' ? 2 : 1}
+            />
+          )}
+        />
+      )}
     </section>
   )
 }

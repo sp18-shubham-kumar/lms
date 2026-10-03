@@ -3,14 +3,18 @@
  * to their target grade. Cleared steps are checked, the current step is raised
  * into a card with its next resource, upcoming steps are quiet.
  */
+import type { ReactNode } from 'react'
+
 import { LEVEL_NAMES, type RoadmapStep } from '../types'
 import { LevelMeter } from './LevelMeter'
 
 interface RoadmapSpineProps {
   steps: RoadmapStep[]
+  /** Extra content for an unmet step (e.g. its learning resources). */
+  renderStepExtra?: (step: RoadmapStep) => ReactNode
 }
 
-export function RoadmapSpine({ steps }: RoadmapSpineProps) {
+export function RoadmapSpine({ steps, renderStepExtra }: RoadmapSpineProps) {
   const firstUpcomingId = steps.find((s) => s.status === 'upcoming')?.id
   return (
     <ol className="relative mt-5 space-y-4 pl-8">
@@ -57,12 +61,16 @@ export function RoadmapSpine({ steps }: RoadmapSpineProps) {
                     label={step.skill}
                   />
                 </div>
-                <button
-                  className="mt-3 rounded-lg px-3.5 py-1.5 text-[13px] font-semibold text-white"
-                  style={{ backgroundColor: 'var(--tenant-accent)' }}
-                >
-                  Work on {step.skill}
-                </button>
+                {renderStepExtra ? (
+                  renderStepExtra(step)
+                ) : (
+                  <button
+                    className="mt-3 rounded-lg px-3.5 py-1.5 text-[13px] font-semibold text-white"
+                    style={{ backgroundColor: 'var(--tenant-accent)' }}
+                  >
+                    Work on {step.skill}
+                  </button>
+                )}
               </div>
             </li>
           )
@@ -87,6 +95,7 @@ export function RoadmapSpine({ steps }: RoadmapSpineProps) {
               {step.skill} → {LEVEL_NAMES[step.targetLevel]}
             </div>
             {step.note && <div className="text-[11.5px] text-ink-soft">{step.note}</div>}
+            {!cleared && renderStepExtra?.(step)}
           </li>
         )
       })}

@@ -12,6 +12,8 @@ import { AdminPage } from './pages/AdminPage'
 import { ChooseTenantPage } from './pages/ChooseTenantPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { DirectoryPage } from './pages/DirectoryPage'
+import { LearningManagePage } from './pages/LearningManagePage'
+import { LearningPage } from './pages/LearningPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { SkillsPage } from './pages/SkillsPage'
@@ -29,6 +31,8 @@ export const router = createBrowserRouter([
           { path: '/', element: <DashboardPage /> },
           { path: '/directory', element: <DirectoryPage /> },
           { path: '/skills', element: <SkillsPage /> },
+          { path: '/learning', element: <LearningPage /> },
+          { path: '/learning/manage', element: <LearningManagePage /> },
           { path: '/team', element: <TeamPage /> },
           { path: '/admin', element: <AdminPage /> },
         ],
