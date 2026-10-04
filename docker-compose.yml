@@ -1,4 +1,4 @@
-c# Local development services. App processes run via PM2 (see ecosystem.config.js);
+# Local development services. App processes run via PM2 (see ecosystem.config.js);
 # this file provides the stateful backing services only.
 services:
   db:

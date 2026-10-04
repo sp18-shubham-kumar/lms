@@ -23,6 +23,13 @@ env = environ.Env(
     JWT_REFRESH_DAYS=(int, 7),
     EMAIL_BACKEND=(str, "django.core.mail.backends.console.EmailBackend"),
     DEFAULT_FROM_EMAIL=(str, "noreply@localhost"),
+    EMAIL_HOST=(str, "localhost"),
+    EMAIL_PORT=(int, 25),
+    EMAIL_HOST_USER=(str, ""),
+    EMAIL_HOST_PASSWORD=(str, ""),
+    EMAIL_USE_TLS=(bool, False),
+    EMAIL_USE_SSL=(bool, False),
+    EMAIL_TIMEOUT=(int, 10),
     FRONTEND_ORIGIN=(str, "http://localhost:5173"),
     INVITATION_DAYS=(int, 7),
 )
@@ -60,6 +67,7 @@ LOCAL_APPS = [
     "apps.authz",
     "apps.skills",
     "apps.profiles",
+    "apps.learning",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -141,7 +149,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "core.pagination.DefaultPagination",
     "PAGE_SIZE": 25,
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "core.schema.TenantAwareAutoSchema",
     "EXCEPTION_HANDLER": "core.exceptions.api_exception_handler",
 }
 
@@ -157,6 +165,34 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Multi-tenant skills platform. See docs/specs/ for the design.",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Separate request/response components so read-only fields (id, timestamps)
+    # don't appear as inputs in Swagger's "Try it out" bodies.
+    "COMPONENT_SPLIT_REQUEST": True,
+    # The X-Tenant-Id security scheme. core.schema.TenantAwareAutoSchema attaches it
+    # (by name) to every operation that enforces tenant membership.
+    "APPEND_COMPONENTS": {
+        "securitySchemes": {
+            "tenantHeader": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Tenant-Id",
+                "description": (
+                    "UUID of the active tenant. Take a `tenant_id` from the `memberships` "
+                    "returned by `POST /api/auth/login/`."
+                ),
+            }
+        }
+    },
+    # Keep the JWT + tenant entered under "Authorize" across page reloads.
+    "SWAGGER_UI_SETTINGS": {"persistAuthorization": True},
+    # Skills and job profiles share one lifecycle; invitations have their own.
+    "ENUM_NAME_OVERRIDES": {
+        "LifecycleStatusEnum": "apps.skills.models.Skill.STATUS_CHOICES",
+        "InvitationStatusEnum": "apps.identity.models.Invitation.Status",
+        "ResourceStatusEnum": "apps.learning.models.LearningResource.STATUS_CHOICES",
+        "ResourceKindEnum": "apps.learning.models.LearningResource.KIND_CHOICES",
+        "ProgressStatusEnum": "apps.learning.models.LearningProgress.STATUS_CHOICES",
+    },
 }
 
 # --- CORS -------------------------------------------------------------------
@@ -166,9 +202,18 @@ CORS_ALLOWED_ORIGINS = env("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_HEADERS = (*default_headers, "x-tenant-id", "idempotency-key")
 
 # --- Mail -------------------------------------------------------------------
-# Dev prints invitation links in the server log. Point EMAIL_BACKEND at SMTP to send them.
+# By default invitation links print in the server log. To send real mail set
+# EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend plus the EMAIL_HOST* values.
 EMAIL_BACKEND = env("EMAIL_BACKEND")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
+EMAIL_HOST = env("EMAIL_HOST")
+EMAIL_PORT = env("EMAIL_PORT")
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = env("EMAIL_USE_TLS")
+EMAIL_USE_SSL = env("EMAIL_USE_SSL")
+# Bounds how long an invite request can hang on an unreachable mail server.
+EMAIL_TIMEOUT = env("EMAIL_TIMEOUT")
 FRONTEND_ORIGIN = env("FRONTEND_ORIGIN")
 INVITATION_DAYS = env("INVITATION_DAYS")
 

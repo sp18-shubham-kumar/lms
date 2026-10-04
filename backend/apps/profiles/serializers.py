@@ -9,6 +9,11 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from apps.profiles.models import JobProfile, ProfileRequirement, ReadinessSnapshot, Track
+from apps.skills.serializers import VisibleSkillField
+
+# Skill rubrics run 1..5 (SkillLevel); a requirement can't target a level outside them.
+MIN_LEVEL = 1
+MAX_LEVEL = 5
 
 
 class TrackSerializer(serializers.ModelSerializer):
@@ -44,6 +49,10 @@ class JobProfileSerializer(serializers.ModelSerializer):
 class ProfileRequirementSerializer(serializers.ModelSerializer):
     """A required skill level within a job profile."""
 
+    skill: VisibleSkillField = VisibleSkillField()
+    skill_name = serializers.CharField(source="skill.name", read_only=True)
+    min_level = serializers.IntegerField(min_value=MIN_LEVEL, max_value=MAX_LEVEL)
+
     class Meta:
         model = ProfileRequirement
         fields = [
@@ -51,6 +60,7 @@ class ProfileRequirementSerializer(serializers.ModelSerializer):
             "tenant",
             "job_profile",
             "skill",
+            "skill_name",
             "min_level",
             "criticality",
             "created_at",
@@ -93,3 +103,50 @@ class ReadinessSnapshotSerializer(serializers.ModelSerializer):
             return obj.membership.person.display_name
         except Exception:
             return ""
+
+
+# ─── Response shapes (OpenAPI documentation for the hand-built APIView payloads) ───
+
+
+class GapItemSerializer(serializers.Serializer):
+    skill_id = serializers.UUIDField()
+    skill_name = serializers.CharField()
+    criticality = serializers.CharField()
+    min_level = serializers.IntegerField()
+    current_level = serializers.IntegerField(
+        allow_null=True, help_text="Verified assertion level, or null when none exists."
+    )
+    status = serializers.ChoiceField(choices=["met", "close", "not_started"])
+
+
+class MeReadinessSerializer(serializers.Serializer):
+    job_profile = serializers.UUIDField()
+    readiness_pct = serializers.IntegerField(help_text="met / total * 100 for core requirements.")
+    met = serializers.IntegerField()
+    total = serializers.IntegerField()
+    requirements = GapItemSerializer(many=True, help_text="Unmet first (smallest gap), met last.")
+
+
+class MemberReadinessSerializer(MeReadinessSerializer):
+    membership_id = serializers.UUIDField()
+    display_name = serializers.CharField()
+
+
+class HeatmapColumnSerializer(serializers.Serializer):
+    skill_id = serializers.UUIDField()
+    skill_name = serializers.CharField()
+
+
+class HeatmapCellSerializer(serializers.Serializer):
+    met = serializers.BooleanField()
+
+
+class HeatmapRowSerializer(serializers.Serializer):
+    membership_id = serializers.UUIDField()
+    display_name = serializers.CharField()
+    cells = HeatmapCellSerializer(many=True, help_text="One cell per column, in column order.")
+
+
+class HeatmapSerializer(serializers.Serializer):
+    columns = HeatmapColumnSerializer(many=True, help_text="Core requirements of the profile.")
+    rows = HeatmapRowSerializer(many=True, help_text="Members of the org-unit subtree.")

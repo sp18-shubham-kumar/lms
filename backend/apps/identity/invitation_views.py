@@ -18,7 +18,11 @@ from apps.identity.invitation_service import (
     resolve_role,
 )
 from apps.identity.models import Invitation
-from apps.identity.serializers import InvitationCreateSerializer, InvitationSerializer
+from apps.identity.serializers import (
+    InvitationCreateSerializer,
+    InvitationPayloadSerializer,
+    InvitationSerializer,
+)
 from core.context import get_current_tenant
 from core.permissions import HasCapability
 
@@ -54,6 +58,7 @@ class InvitationListView(ListAPIView):
         ),
         tags=["Identity"],
         request=InvitationCreateSerializer,
+        responses={201: InvitationPayloadSerializer},
     )
     def post(self, request: Any) -> Response:
         serializer = InvitationCreateSerializer(data=request.data)
@@ -86,6 +91,8 @@ class InvitationResendView(APIView):
             "new link. The previous token stops working. Gated by member.invite."
         ),
         tags=["Identity"],
+        request=None,
+        responses=InvitationPayloadSerializer,
     )
     def post(self, request: Any, id: Any) -> Response:
         try:
@@ -110,6 +117,7 @@ class InvitationCancelView(APIView):
             "Gated by member.invite."
         ),
         tags=["Identity"],
+        responses={204: None},
     )
     def delete(self, request: Any, id: Any) -> Response:
         try:

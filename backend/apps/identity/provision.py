@@ -23,8 +23,18 @@ ADMIN_CAPABILITIES = [
     "credential.revoke",
     "taxonomy.edit",
     "jobprofile.edit",
+    "resource.edit",
     "report.org.view",
 ]
+LEARNER_ROLE = "Learner"
+LEARNER_CAPABILITIES = ["directory.view", "skill.claim.submit"]
+
+# Every new organization starts with these system roles, so the first admin can
+# invite people without handing out admin by default.
+STARTER_ROLES: dict[str, list[str]] = {
+    ADMIN_ROLE: ADMIN_CAPABILITIES,
+    LEARNER_ROLE: LEARNER_CAPABILITIES,
+}
 
 
 class ProvisionError(Exception):
@@ -36,7 +46,7 @@ class ProvisionError(Exception):
 
 @transaction.atomic
 def provision_tenant(*, name: str, slug: str, admin_email: str, actor: Any) -> dict[str, Any]:
-    """Create the organisation, the Tenant Admin role, and a pending admin invitation.
+    """Create the organisation, its starter roles, and a pending admin invitation.
 
     The person is stored with an unusable password. They join by accepting the
     invitation (``POST /api/auth/invitations/accept/``), which sets the password
@@ -68,13 +78,14 @@ def provision_tenant(*, name: str, slug: str, admin_email: str, actor: Any) -> d
         person.set_unusable_password()
         person.save(update_fields=["password"])
 
-    for key in ADMIN_CAPABILITIES:
+    for key in ADMIN_CAPABILITIES + LEARNER_CAPABILITIES:
         Capability.objects.get_or_create(key=key)
 
     with tenant_context(tenant.id):
-        role = Role.objects.create(tenant=tenant, name=ADMIN_ROLE, is_system=True)
-        for key in ADMIN_CAPABILITIES:
-            RoleCapability.objects.create(tenant=tenant, role=role, capability_id=key)
+        for role_name, capabilities in STARTER_ROLES.items():
+            role = Role.objects.create(tenant=tenant, name=role_name, is_system=True)
+            for key in capabilities:
+                RoleCapability.objects.create(tenant=tenant, role=role, capability_id=key)
 
     invitation = create_invitation(
         email=admin_email,

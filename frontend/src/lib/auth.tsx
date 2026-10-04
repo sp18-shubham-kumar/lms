@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import { api, tenantStore, tokenStore } from './api'
 
@@ -14,14 +22,45 @@ export interface Session {
   capabilities: string[]
   /** Display name of the signed-in person. */
   displayName?: string
+  /** Organizations the person can act in. */
+  memberships: Membership[]
+  /** Platform operators can create tenants (the /platform screen). */
+  isPlatformOperator: boolean
 }
+
+export interface LoginResult {
+  memberships: Membership[]
+  isPlatformOperator: boolean
+}
+
+/** Shape shared by /auth/login/, /auth/me/ and /auth/session/. */
+interface AccountPayload {
+  person?: { display_name?: string }
+  capabilities?: string[]
+  memberships?: Membership[]
+  is_platform_operator?: boolean
+}
+
+function toSession(data: AccountPayload): Session {
+  return {
+    capabilities: data.capabilities ?? [],
+    displayName: data.person?.display_name,
+    memberships: data.memberships ?? [],
+    isPlatformOperator: data.is_platform_operator ?? false,
+  }
+}
+
+const EMPTY_SESSION: Session = { capabilities: [], memberships: [], isPlatformOperator: false }
 
 interface AuthContextValue {
   isAuthenticated: boolean
   bootstrapping: boolean
   session: Session | null
-  login: (email: string, password: string) => Promise<Membership[]>
+  login: (email: string, password: string) => Promise<LoginResult>
+  /** Load capabilities for the active tenant. No-op without a tenant. */
   loadSession: () => Promise<void>
+  /** Load the account without a tenant (memberships + operator flag). */
+  loadAccount: () => Promise<void>
   logout: () => void
   hasCapability: (capability: string) => boolean
   /**
@@ -35,26 +74,28 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const hasTokenAtMount = Boolean(tokenStore.getAccess() && tenantStore.get())
-  const [session, setSession] = useState<Session | null>(
-    tokenStore.getAccess() ? { capabilities: [] } : null,
-  )
+  const hasTokenAtMount = Boolean(tokenStore.getAccess())
+  const [session, setSession] = useState<Session | null>(hasTokenAtMount ? EMPTY_SESSION : null)
   const [bootstrapping, setBootstrapping] = useState(hasTokenAtMount)
 
   const login = useCallback(async (email: string, password: string) => {
     const resp = await api.post('/auth/login/', { email, password })
     tokenStore.set(resp.data.access, resp.data.refresh)
-    setSession({ capabilities: [] })
-    return resp.data.memberships as Membership[]
+    const next = toSession(resp.data)
+    setSession(next)
+    return { memberships: next.memberships, isPlatformOperator: next.isPlatformOperator }
   }, [])
 
   const loadSession = useCallback(async () => {
     if (!tokenStore.getAccess() || !tenantStore.get()) return
     const resp = await api.get('/auth/session/')
-    setSession({
-      capabilities: resp.data.capabilities ?? [],
-      displayName: resp.data.person?.display_name,
-    })
+    setSession(toSession(resp.data))
+  }, [])
+
+  const loadAccount = useCallback(async () => {
+    if (!tokenStore.getAccess()) return
+    const resp = await api.get('/auth/me/')
+    setSession(toSession(resp.data))
   }, [])
 
   const logout = useCallback(() => {
@@ -67,18 +108,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // render the learner-facing screens (My path, Skills, Directory).
   const enterDemo = useCallback(() => {
     setSession({
+      ...EMPTY_SESSION,
       capabilities: ['directory.view', 'skill.claim.submit'],
       displayName: 'Priya Nair',
     })
   }, [])
 
-  // Hydrate capabilities on app mount when a token + tenant are already persisted
-  // (hard refresh / new tab). Must run exactly once; failure clears the session so
-  // ProtectedRoute redirects to /login. We cannot call useNavigate here because
-  // AuthProvider sits outside the Router.
+  // Hydrate on app mount when a token is already persisted (hard refresh / new
+  // tab): the tenant session if a tenant is selected, otherwise the bare account
+  // (a platform operator, or someone still choosing an organization). Must run
+  // exactly once; failure clears the session so ProtectedRoute redirects to
+  // /login. We cannot call useNavigate here because AuthProvider sits outside the
+  // Router.
   useEffect(() => {
     if (!hasTokenAtMount) return
-    loadSession().catch(() => logout()).finally(() => setBootstrapping(false))
+    const restore = tenantStore.get() ? loadSession : loadAccount
+    restore()
+      .catch(() => logout())
+      .finally(() => setBootstrapping(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -94,11 +141,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       login,
       loadSession,
+      loadAccount,
       logout,
       hasCapability,
       enterDemo,
     }),
-    [session, bootstrapping, login, loadSession, logout, hasCapability, enterDemo],
+    [session, bootstrapping, login, loadSession, loadAccount, logout, hasCapability, enterDemo],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -127,5 +127,10 @@ class ReadinessSnapshot(TenantScopedModel):
             )
         ]
 
+    @property
+    def readiness_pct(self) -> int:
+        """Core requirements met, as a whole percentage (0 when there are none)."""
+        return int(self.met * 100 / self.total) if self.total else 0
+
     def __str__(self) -> str:
         return f"ReadinessSnapshot({self.membership_id}, {self.job_profile_id}, {self.met}/{self.total})"

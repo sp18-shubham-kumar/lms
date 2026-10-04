@@ -3,7 +3,13 @@
  * domain; a learner can declare/remove their own skills (the self-claimed tier).
  */
 import { useAuth } from '../../lib/auth'
-import { useSkillDomains, useSkills, useMyDeclarations, useDeclareSkill, useRemoveDeclaration } from './api'
+import {
+  useSkillDomains,
+  useSkills,
+  useMyDeclarations,
+  useDeclareSkill,
+  useRemoveDeclaration,
+} from './api'
 import { SkillCard } from './components/SkillCard'
 
 export function SkillsCatalogue() {

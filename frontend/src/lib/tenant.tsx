@@ -40,8 +40,21 @@ function applyTheme(tenant: Tenant | null): void {
   document.documentElement.style.setProperty('--tenant-accent', accent)
 }
 
+/** The persisted tenant, if its profile still matches the persisted tenant id. */
+function restoreTenant(): Tenant | null {
+  const id = tenantStore.get()
+  const raw = tenantStore.getProfile()
+  if (!id || !raw) return null
+  try {
+    const profile = JSON.parse(raw) as Tenant
+    return profile.id === id ? profile : null
+  } catch {
+    return null
+  }
+}
+
 export function TenantProvider({ children }: { children: ReactNode }) {
-  const [tenant, setTenantState] = useState<Tenant | null>(null)
+  const [tenant, setTenantState] = useState<Tenant | null>(restoreTenant)
 
   useEffect(() => {
     applyTheme(tenant)
@@ -52,6 +65,7 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     resetForTenantSwitch()
     if (next) {
       tenantStore.set(next.id)
+      tenantStore.setProfile(JSON.stringify(next))
     } else {
       tenantStore.clear()
     }

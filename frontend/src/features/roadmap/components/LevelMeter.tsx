@@ -37,7 +37,9 @@ export function LevelMeter({ currentLevel, targetLevel, label }: LevelMeterProps
             style={{
               backgroundColor: 'var(--tenant-accent)',
               opacity: filled ? 1 : 0.16,
-              boxShadow: isTarget ? '0 0 0 1.5px color-mix(in srgb, var(--tenant-accent) 55%, white)' : undefined,
+              boxShadow: isTarget
+                ? '0 0 0 1.5px color-mix(in srgb, var(--tenant-accent) 55%, white)'
+                : undefined,
             }}
           />
         )

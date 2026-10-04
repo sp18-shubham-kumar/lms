@@ -9,42 +9,11 @@
 import { useState } from 'react'
 
 import { useAuth } from '../../lib/auth'
+import { StepResources } from '../learning/StepResources'
 import { useJobProfiles, useReadiness } from './api'
 import { RoadmapSpine } from './components/RoadmapSpine'
 import { ReadinessRing } from './components/ReadinessRing'
-import type { LevelValue, Readiness, RoadmapStep } from './types'
-
-/** Transform the API readiness payload into the roadmap UI model. */
-function toSteps(readiness: Readiness): RoadmapStep[] {
-  let currentAssigned = false
-  return readiness.requirements.map((r) => {
-    const met = r.status === 'met'
-    let status: RoadmapStep['status']
-    if (met) {
-      status = 'cleared'
-    } else if (!currentAssigned) {
-      status = 'current'
-      currentAssigned = true
-    } else {
-      status = 'upcoming'
-    }
-    const currentLevel = Math.max(0, Math.min(4, r.current_level ?? 0)) as LevelValue
-    const targetLevel = Math.max(1, Math.min(4, r.min_level)) as LevelValue
-    return {
-      id: r.skill_id,
-      skill: r.skill_name,
-      targetLevel,
-      currentLevel,
-      status,
-      levelsToGo: status === 'current' ? Math.max(1, targetLevel - currentLevel) : undefined,
-      note: met
-        ? `Cleared · ${r.criticality}`
-        : status === 'upcoming'
-          ? `${r.criticality} · min ${r.min_level}`
-          : undefined,
-    }
-  })
-}
+import { toSteps } from './steps'
 
 export function RoadmapHome() {
   const { hasCapability } = useAuth()
@@ -100,8 +69,8 @@ export function RoadmapHome() {
 
       {!canPickTarget && (
         <div className="mt-5 rounded-xl border border-brand-100 bg-white p-5 text-sm text-ink-soft">
-          Your target grade hasn’t been shared with your account yet. Once a manager sets it,
-          your readiness route appears here. In the meantime, declare your skills on the{' '}
+          Your target grade hasn’t been shared with your account yet. Once a manager sets it, your
+          readiness route appears here. In the meantime, declare your skills on the{' '}
           <span className="font-semibold text-ink">Skills</span> page.
         </div>
       )}
@@ -110,7 +79,19 @@ export function RoadmapHome() {
       {readiness.isError && (
         <p className="mt-5 text-ink-soft">Could not load readiness for this target.</p>
       )}
-      {readiness.data && <RoadmapSpine steps={toSteps(readiness.data)} />}
+      {readiness.data && target && (
+        <RoadmapSpine
+          steps={toSteps(readiness.data)}
+          renderStepExtra={(step) => (
+            <StepResources
+              target={target}
+              skillId={step.id}
+              skillName={step.skill}
+              limit={step.status === 'current' ? 2 : 1}
+            />
+          )}
+        />
+      )}
     </section>
   )
 }

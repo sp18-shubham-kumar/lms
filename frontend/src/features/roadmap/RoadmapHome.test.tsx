@@ -27,15 +27,67 @@ const readiness = {
   met: 1,
   total: 2,
   requirements: [
-    { skill_id: 's1', skill_name: 'SQL', criticality: 'core', min_level: 2, current_level: 2, status: 'met' },
-    { skill_id: 's2', skill_name: 'Python', criticality: 'core', min_level: 2, current_level: 1, status: 'close' },
+    {
+      skill_id: 's1',
+      skill_name: 'SQL',
+      criticality: 'core',
+      min_level: 2,
+      current_level: 2,
+      status: 'met',
+    },
+    {
+      skill_id: 's2',
+      skill_name: 'Python',
+      criticality: 'core',
+      min_level: 2,
+      current_level: 1,
+      status: 'close',
+    },
+  ],
+}
+
+const recommendations = {
+  job_profile: 'p2',
+  gaps: [
+    {
+      skill_id: 's2',
+      skill_name: 'Python',
+      criticality: 'core',
+      min_level: 2,
+      current_level: 1,
+      resources: [
+        {
+          resource: {
+            id: 'r1',
+            title: 'Intermediate Python for Data',
+            kind: 'course',
+            url: '',
+            provider: '',
+            module_count: 6,
+            duration_minutes: null,
+            status: 'published',
+          },
+          target_level: 2,
+          progress: null,
+        },
+      ],
+      refreshers: [],
+    },
   ],
 }
 
 beforeEach(() => {
   vi.spyOn(api, 'get').mockImplementation((async (url: string) => {
     if (url.includes('job-profiles'))
-      return { data: { count: 1, next: null, previous: null, results: [{ id: 'p2', title: 'Data Engineer L2' }] } }
+      return {
+        data: {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{ id: 'p2', title: 'Data Engineer L2' }],
+        },
+      }
+    if (url.includes('recommendations')) return { data: recommendations }
     return { data: readiness }
   }) as never)
 })
@@ -55,4 +107,56 @@ test('picking a target renders real readiness', async () => {
   expect(await screen.findByLabelText(/Readiness 50 percent/)).toBeInTheDocument()
   expect(screen.getByText(/1 of 2 core requirements met/)).toBeInTheDocument()
   expect(screen.getByText(/Now · Python/)).toBeInTheDocument()
+})
+
+test('the current gap step lists its recommended resources', async () => {
+  mockAuth(true)
+  render(wrap(<RoadmapHome />))
+  await screen.findByRole('option', { name: 'Data Engineer L2' })
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p2' } })
+  expect(await screen.findByText('Intermediate Python for Data')).toBeInTheDocument()
+  expect(screen.getByText('Course · 6 modules')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument()
+})
+
+test('a gap with only below-level resources offers them as refreshers', async () => {
+  mockAuth(true)
+  const [gap] = recommendations.gaps
+  vi.spyOn(api, 'get').mockImplementation((async (url: string) => {
+    if (url.includes('job-profiles'))
+      return {
+        data: {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{ id: 'p2', title: 'Data Engineer L2' }],
+        },
+      }
+    if (url.includes('recommendations'))
+      return {
+        data: {
+          ...recommendations,
+          gaps: [
+            {
+              ...gap,
+              resources: [],
+              refreshers: [
+                {
+                  ...gap.resources[0],
+                  resource: { ...gap.resources[0].resource, title: 'Python Basics' },
+                  target_level: 1,
+                },
+              ],
+            },
+          ],
+        },
+      }
+    return { data: readiness }
+  }) as never)
+  render(wrap(<RoadmapHome />))
+  await screen.findByRole('option', { name: 'Data Engineer L2' })
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'p2' } })
+  expect(await screen.findByText('Python Basics')).toBeInTheDocument()
+  expect(screen.getByText(/No resource teaches Python beyond your level 1 yet/)).toBeInTheDocument()
+  expect(screen.queryByText(/No learning resources for Python/)).not.toBeInTheDocument()
 })
